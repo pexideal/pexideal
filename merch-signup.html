@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partner With PerkPass | Grow Your Local Business</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #4f46e5;
+      --secondary-color: #06b6d4;
+    }
+
+    body {
+      background-color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #334155;
+    }
+
+    /* Form Container Card */
+    .partner-card {
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Form Field Focus Ring */
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.15);
+    }
+
+    /* Benefit Checkmark Circle */
+    .benefit-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: rgba(79, 70, 229, 0.1);
+      color: var(--primary-color);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container py-5">
+    <div class="row justify-content-center align-items-center g-5">
+      
+      <!-- Left Column: Value Proposition & Pitch -->
+      <div class="col-lg-5">
+        <span class="badge bg-primary-subtle text-primary mb-3 px-3 py-2 rounded-pill fw-semibold">B2B Merchant Program</span>
+        <h1 class="display-5 fw-bold mb-3">Drive New Foot Traffic To Your Store</h1>
+        <p class="lead text-muted mb-4">Partner with PerkPass to reach thousands of local cardholders with zero upfront marketing costs.</p>
+
+        <div class="d-flex flex-column gap-3 mb-4">
+          <div class="d-flex align-items-start gap-3">
+            <div class="benefit-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div>
+              <h6 class="fw-bold mb-1">Pay Only For Performance</h6>
+              <p class="small text-muted mb-0">No listing fees or subscriptions. You only offer a discount when a customer presents their pass to purchase.</p>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-start gap-3">
+            <div class="benefit-icon"><i class="bi bi-people-fill"></i></div>
+            <div>
+              <h6 class="fw-bold mb-1">Fill Slow Hours & Days</h6>
+              <p class="small text-muted mb-0">Customize your discount terms (e.g., *"20% off Monday through Thursday"*) to boost sales when you need it most.</p>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-start gap-3">
+            <div class="benefit-icon"><i class="bi bi-qr-code-scan"></i></div>
+            <div>
+              <h6 class="fw-bold mb-1">Easy Cashier Scanner</h6>
+              <p class="small text-muted mb-0">Scan customer passes directly from any phone or tablet browser—no expensive hardware required.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-white rounded-3 border">
+          <small class="text-muted d-block mb-1">Join 150+ growing local brands</small>
+          <div class="d-flex gap-2 text-primary fw-bold fs-5">
+            <span>The Urban Bistro</span> • <span>Pulse Fitness</span> • <span>Moda</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Registration Form -->
+      <div class="col-lg-7">
+        <div class="card partner-card p-4 p-md-5 bg-white">
+          <div class="mb-4">
+            <h3 class="fw-bold mb-1">Become an Affiliate Partner</h3>
+            <p class="text-muted small">Fill out this quick application and our team will onboard your store within 24 hours.</p>
+          </div>
+
+          <form id="merchant-form" class="needs-validation" novalidate>
+            <!-- Step 1: Business Details -->
+            <h6 class="text-primary fw-bold text-uppercase fs-7 tracking-wider mb-3"><i class="bi bi-shop me-1"></i> 1. Business Information</h6>
+            
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label for="business-name" class="form-label small fw-semibold">Business Name *</label>
+                <input type="text" class="form-control" id="business-name" placeholder="e.g. Copper Kettle Cafe" required>
+              </div>
+
+              <div class="col-md-6">
+                <label for="business-category" class="form-label small fw-semibold">Category *</label>
+                <select class="form-select" id="business-category" required>
+                  <option value="" selected disabled>Select primary category...</option>
+                  <option value="food">Food & Drink (Restaurant, Cafe, Bar)</option>
+                  <option value="retail">Retail & Apparel</option>
+                  <option value="wellness">Wellness, Spa & Fitness</option>
+                  <option value="entertainment">Entertainment & Events</option>
+                  <option value="services">Professional Services</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label for="store-location" class="form-label small fw-semibold">Store Address / Area *</label>
+                <input type="text" class="form-control" id="store-location" placeholder="e.g. Plot 102, Main Mall, Downtown" required>
+              </div>
+
+              <div class="col-md-6">
+                <label for="store-website" class="form-label small fw-semibold">Website or Social Page</label>
+                <input type="url" class="form-control" id="store-website" placeholder="https://instagram.com/yourstore">
+              </div>
+            </div>
+
+            <!-- Step 2: Proposed Perk/Offer -->
+            <h6 class="text-primary fw-bold text-uppercase fs-7 tracking-wider mb-3"><i class="bi bi-percent me-1"></i> 2. Proposed Cardholder Offer</h6>
+            
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label for="discount-type" class="form-label small fw-semibold">Offer Type *</label>
+                <select class="form-select" id="discount-type" required>
+                  <option value="percentage" selected>Percentage Discount (e.g. 15% OFF)</option>
+                  <option value="fixed">Fixed Amount OFF (e.g. $10 OFF)</option>
+                  <option value="bogo">Buy 1 Get 1 Free (BOGO)</option>
+                  <option value="freebie">Free Gift / Drink with Purchase</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label for="discount-value" class="form-label small fw-semibold">Offer Headline *</label>
+                <input type="text" class="form-control" id="discount-value" placeholder="e.g. 20% OFF all lunch meals" required>
+              </div>
+
+              <div class="col-12">
+                <label for="offer-terms" class="form-label small fw-semibold">Terms & Conditions (Optional)</label>
+                <textarea class="form-control" id="offer-terms" rows="2" placeholder="e.g. Valid Mon-Thu only. Not applicable on alcoholic beverages."></textarea>
+              </div>
+            </div>
+
+            <!-- Step 3: Owner Contact Details -->
+            <h6 class="text-primary fw-bold text-uppercase fs-7 tracking-wider mb-3"><i class="bi bi-person-badge me-1"></i> 3. Contact Person</h6>
+            
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label for="contact-name" class="form-label small fw-semibold">Full Name *</label>
+                <input type="text" class="form-control" id="contact-name" placeholder="Sarah Jenkins" required>
+              </div>
+
+              <div class="col-md-6">
+                <label for="contact-role" class="form-label small fw-semibold">Role / Title *</label>
+                <input type="text" class="form-control" id="contact-role" placeholder="Owner, General Manager" required>
+              </div>
+
+              <div class="col-md-6">
+                <label for="contact-email" class="form-label small fw-semibold">Email Address *</label>
+                <input type="email" class="form-control" id="contact-email" placeholder="sarah@copperkettle.com" required>
+              </div>
+
+              <div class="col-md-6">
+                <label for="contact-phone" class="form-label small fw-semibold">Phone / WhatsApp *</label>
+                <input type="tel" class="form-control" id="contact-phone" placeholder="+267 71 234 567" required>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold">
+                Submit Affiliate Application <i class="bi bi-arrow-right ms-2"></i>
+              </button>
+            </div>
+
+            <p class="text-center text-muted small mt-3 mb-0">
+              <i class="bi bi-shield-lock me-1"></i> Your details are kept safe and never shared.
+            </p>
+          </form>
+
+          <!-- Success Alert State (Hidden by default) -->
+          <div id="form-success" class="text-center py-4 d-none">
+            <div class="benefit-icon bg-success bg-opacity-10 text-success mx-auto mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
+              <i class="bi bi-check-lg"></i>
+            </div>
+            <h4 class="fw-bold">Application Received!</h4>
+            <p class="text-muted">Thanks for applying. Our partner manager will review your offer and email your cashier login credentials within 24 hours.</p>
+            <button class="btn btn-outline-primary rounded-pill px-4 mt-2" onclick="location.reload()">Submit Another Store</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+<script src="js/app.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

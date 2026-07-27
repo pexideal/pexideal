@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Your PerkPass | Instant Digital Card</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #4f46e5;
+      --secondary-color: #06b6d4;
+      --dark-bg: #0f172a;
+    }
+
+    body {
+      background-color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #334155;
+    }
+
+    .signup-card {
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Tier Selection Cards */
+    .tier-option {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tier-option:hover {
+      border-color: #cbd5e1;
+    }
+
+    .tier-option.selected {
+      border-color: var(--primary-color);
+      background-color: rgba(79, 70, 229, 0.03);
+    }
+
+    /* Pass Card Preview Visual */
+    .digital-pass-card {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      border-radius: 16px;
+      color: white;
+      box-shadow: 0 15px 25px -5px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Form Controls */
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.15);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg bg-white border-bottom">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-primary fs-4" href="index.html">
+        <i class="bi bi-card-heading me-1"></i> PerkPass
+      </a>
+      <span class="navbar-text text-muted small">
+        Already a member? <a href="login.html" class="text-primary text-decoration-none fw-semibold">Sign In</a>
+      </span>
+    </div>
+  </nav>
+
+  <div class="container py-5">
+    <div class="row justify-content-center align-items-center g-5">
+      
+      <!-- LEFT COLUMN: Registration Form State -->
+      <div class="col-lg-7" id="form-container">
+        <div class="card signup-card p-4 p-md-5 bg-white">
+          <div class="mb-4">
+            <span class="badge bg-primary-subtle text-primary mb-2 px-3 py-1 rounded-pill fw-semibold">Instant Membership</span>
+            <h2 class="fw-bold mb-1">Get Your Digital PerkPass</h2>
+            <p class="text-muted small">Create your account to unlock local discounts instantly on your phone.</p>
+          </div>
+
+          <form id="signup-form" class="needs-validation" novalidate>
+            <!-- 1. Membership Tier Choice -->
+            <label class="form-label small fw-semibold text-uppercase text-muted mb-2">Select Pass Tier</label>
+            <div class="row g-3 mb-4">
+              <div class="col-6">
+                <div class="tier-option p-3 selected" data-tier="standard" onclick="selectTier(this)">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-bold fs-6">Standard Pass</span>
+                    <span class="badge bg-success-subtle text-success rounded-pill">FREE</span>
+                  </div>
+                  <small class="text-muted d-block fs-7">Access to 100+ standard retail & dining discounts.</small>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="tier-option p-3" data-tier="vip" onclick="selectTier(this)">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-bold fs-6">VIP All-Access</span>
+                    <span class="fw-bold text-primary fs-7">$4.99/mo</span>
+                  </div>
+                  <small class="text-muted d-block fs-7">Exclusive 30-50% deals, gym passes & priority perks.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Personal Information -->
+            <label class="form-label small fw-semibold text-uppercase text-muted mb-2">Your Information</label>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label for="first-name" class="form-label small fw-semibold">First Name *</label>
+                <input type="text" class="form-control" id="first-name" placeholder="Alex" required>
+              </div>
+              <div class="col-md-6">
+                <label for="last-name" class="form-label small fw-semibold">Last Name *</label>
+                <input type="text" class="form-control" id="last-name" placeholder="Johnson" required>
+              </div>
+              <div class="col-md-6">
+                <label for="email" class="form-label small fw-semibold">Email Address *</label>
+                <input type="email" class="form-control" id="email" placeholder="alex@example.com" required>
+              </div>
+              <div class="col-md-6">
+                <label for="phone" class="form-label small fw-semibold">Mobile Number (For SMS Pass) *</label>
+                <input type="tel" class="form-control" id="phone" placeholder="+267 71 234 567" required>
+              </div>
+              <div class="col-12">
+                <label for="password" class="form-label small fw-semibold">Create Password *</label>
+                <input type="password" class="form-control" id="password" placeholder="Minimum 8 characters" minlength="8" required>
+              </div>
+            </div>
+
+            <div class="form-check mb-4">
+              <input class="form-check-input" type="checkbox" id="terms" required>
+              <label class="form-check-label small text-muted" for="terms">
+                I agree to the <a href="#" class="text-decoration-none">Terms of Service</a> and <a href="#" class="text-decoration-none">Privacy Policy</a>.
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold w-100">
+              Claim My Digital Card <i class="bi bi-arrow-right ms-2"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Instant Pass Success View -->
+      <div class="col-lg-5">
+        
+        <!-- Default Helper Card -->
+        <div id="preview-placeholder" class="text-center p-4">
+          <div class="digital-pass-card p-4 d-flex flex-column justify-content-between mb-4" style="min-height: 220px;">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h5 class="fw-bold mb-0">PerkPass Member</h5>
+                <small class="opacity-75" id="card-tier-label">Standard Pass</small>
+              </div>
+              <i class="bi bi-qr-code-scan fs-2"></i>
+            </div>
+            <div class="my-3 text-start">
+              <span class="font-monospace fs-5 tracking-widest">•••• •••• •••• 2026</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-end text-start">
+              <div>
+                <small class="d-block opacity-75 fs-7">CARD HOLDER</small>
+                <span class="fw-semibold" id="card-name-label">Your Name Here</span>
+              </div>
+              <div class="text-end">
+                <small class="d-block opacity-75 fs-7">STATUS</small>
+                <span class="badge bg-light text-dark fw-bold">READY</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-muted small">Fill in the registration form to instantly generate and claim your dynamic digital pass.</p>
+        </div>
+
+        <!-- Success Issued Card View (Hidden by Default) -->
+        <div id="issued-pass-container" class="card signup-card p-4 text-center d-none bg-white">
+          <div class="badge bg-success-subtle text-success rounded-pill px-3 py-2 fw-bold d-inline-block mx-auto mb-3">
+            <i class="bi bi-check-circle-fill me-1"></i> Pass Issued Successfully!
+          </div>
+          
+          <h4 class="fw-bold mb-1">Welcome, <span id="user-first-name">Alex</span>!</h4>
+          <p class="text-muted small mb-4">Your dynamic discount card is ready for use.</p>
+
+          <!-- Dynamic Pass Issued UI -->
+          <div class="bg-dark text-white rounded-4 p-4 shadow mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="badge bg-primary text-white" id="issued-tier-badge">Standard Pass</span>
+              <small class="text-success fw-bold"><i class="bi bi-circle-fill fs-8 me-1"></i> Active</small>
+            </div>
+            
+            <div class="bg-white p-3 rounded-3 d-inline-block my-2">
+              <img id="issued-qr" src="" alt="Dynamic Member QR Pass" width="160" height="160" class="img-fluid">
+            </div>
+
+            <p class="font-monospace small mb-0 mt-2 text-white-50">CARD ID: <strong class="text-white" id="issued-card-number">DC-0000-2026</strong></p>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button class="btn btn-primary rounded-pill fw-bold" onclick="alert('Digital card downloaded to Apple Wallet / Google Wallet!')">
+              <i class="bi bi-wallet2 me-2"></i> Add to Mobile Wallet
+            </button>
+            <a href="index.html#stores" class="btn btn-outline-secondary rounded-pill">Browse Affiliate Stores</a>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+  <script src="js/app.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>
