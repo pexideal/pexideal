@@ -3,9 +3,16 @@
  * File: js/app.js
  */
 
-// Configuration: Replace with your deployed Render backend URL when live
+// Dynamically use localhost during development, and Render in production
+const IS_LOCAL = window.location.hostname === 'localhost' || 
+                 window.location.hostname === '127.0.0.1' || 
+                 window.location.protocol === 'file:';
+
 const CONFIG = {
-  API_BASE_URL: 'https://perkpass-api.onrender.com', // e.g., 'http://localhost:5000' during dev
+  // Stripped trailing slash to prevent double slashes in API endpoints
+  API_BASE_URL: IS_LOCAL 
+    ? 'http://127.0.0.1:5000' 
+    : 'https://pexideal.onrender.com', 
   TOKEN_KEY: 'pexideal_token',
   USER_KEY: 'pexideal_user'
 };
@@ -26,13 +33,20 @@ const Auth = {
   logout() {
     localStorage.removeItem(CONFIG.TOKEN_KEY);
     localStorage.removeItem(CONFIG.USER_KEY);
-    window.location.href = 'login.html';
+    // Adjust path depending on whether page is in root or subfolder
+    const isSubfolder = window.location.pathname.includes('/interface/');
+    window.location.href = isSubfolder ? '../login.html' : 'login.html';
   },
 
   // Get logged-in user profile
   getUser() {
     const raw = localStorage.getItem(CONFIG.USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    try {
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error('Failed to parse user data:', e);
+      return null;
+    }
   },
 
   // Check if authenticated
@@ -42,10 +56,13 @@ const Auth = {
 };
 
 /**
- * Universal Fetch Wrapper with Auth Headers
+ * Universal Fetch Wrapper with Auth Headers & Trailing Slash Safety
  */
 async function apiFetch(endpoint, options = {}) {
   const token = Auth.getToken();
+  
+  // Ensure endpoint starts with a slash
+  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   const headers = {
     'Content-Type': 'application/json',
@@ -54,16 +71,24 @@ async function apiFetch(endpoint, options = {}) {
   };
 
   try {
-    const response = await fetch(`${CONFIG.API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${CONFIG.API_BASE_URL}${formattedEndpoint}`, {
       ...options,
       headers
     });
     
+    // Auto logout on expired session / invalid token
+    if (response.status === 401 || response.status === 403) {
+      console.warn('Session expired or unauthorized. Logging out...');
+      Auth.logout();
+      throw new Error('Session expired. Please log in again.');
+    }
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'API request failed');
     return data;
+
   } catch (error) {
-    console.error(`API Error (${endpoint}):`, error);
+    console.error(`API Error (${formattedEndpoint}):`, error);
     throw error;
   }
 }

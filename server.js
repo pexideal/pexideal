@@ -33,7 +33,7 @@ app.use('/v1/discounts', verifyRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    system: 'Pexideal PerkPass API',
+    system: 'Pexideal Pexideal API',
     timestamp: new Date().toISOString()
   });
 });

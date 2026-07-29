@@ -38,20 +38,21 @@ router.post('/register-client', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Insert user
+    // Insert user with default active status
     const newUser = await db.query(
-      `INSERT INTO users (first_name, last_name, email, password_hash, role)
-       VALUES ($1, $2, $3, $4, 'client')
+      `INSERT INTO users (first_name, last_name, email, password_hash, role, status)
+       VALUES ($1, $2, $3, $4, 'client', 'active')
        RETURNING id, first_name, last_name, email, role, created_at`,
       [firstName, lastName, email, passwordHash]
     );
 
     const user = newUser.rows[0];
 
-    // Issue a digital discount card for the new user
+    // Issue a digital discount card (populates card_code, card_number, and qr_code_token)
     const cardCode = `PEX-${Math.floor(100000 + Math.random() * 900000)}`;
     await db.query(
-      `INSERT INTO cards (user_id, card_code, status) VALUES ($1, $2, 'active')`,
+      `INSERT INTO cards (user_id, card_code, card_number, qr_code_token, status, is_active) 
+       VALUES ($1, $2, $2, $2, 'active', true)`,
       [user.id, cardCode]
     );
 
@@ -90,11 +91,12 @@ router.post('/register-merchant', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Save directly to business_name and business_category columns
     const newUser = await db.query(
-      `INSERT INTO users (first_name, email, password_hash, role)
-       VALUES ($1, $2, $3, 'merchant')
-       RETURNING id, first_name AS business_name, email, role`,
-      [businessName, email, passwordHash]
+      `INSERT INTO users (business_name, business_category, email, password_hash, role, status)
+       VALUES ($1, $2, $3, $4, 'merchant', 'active')
+       RETURNING id, business_name, business_category, email, role, created_at`,
+      [businessName, category, email, passwordHash]
     );
 
     const user = newUser.rows[0];
@@ -137,6 +139,18 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
+    // Fetch associated card if this is a client user
+    let cardCode = null;
+    if (user.role === 'client') {
+      const cardResult = await db.query(
+        'SELECT card_code FROM cards WHERE user_id = $1 LIMIT 1',
+        [user.id]
+      );
+      if (cardResult.rows.length > 0) {
+        cardCode = cardResult.rows[0].card_code;
+      }
+    }
+
     const token = generateToken(user);
 
     return res.json({
@@ -147,8 +161,11 @@ router.post('/login', async (req, res) => {
         id: user.id,
         firstName: user.first_name,
         lastName: user.last_name,
+        businessName: user.business_name,
+        businessCategory: user.business_category,
         email: user.email,
-        role: user.role
+        role: user.role,
+        cardCode
       }
     });
 

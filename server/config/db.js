@@ -6,21 +6,36 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+const dbUrl = process.env.DATABASE_URL || '';
+
+// Automatically detect if SSL is needed (Neon, Supabase, Render, or explicit SSL string)
+const useSSL = 
+  process.env.NODE_ENV === 'production' || 
+  dbUrl.includes('neon.tech') || 
+  dbUrl.includes('supabase') || 
+  dbUrl.includes('sslmode=require');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' || process.env.DATABASE_URL.includes('neon.tech') || process.env.DATABASE_URL.includes('supabase')
-    ? { rejectUnauthorized: false }
-    : false,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionString: dbUrl,
+  ssl: useSSL ? { rejectUnauthorized: false } : false,
+  
+  // Connection Pool & Timeout Safeguards
+  max: 10,                          // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000,         // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 10000,   // Give server 10s to establish initial connection
+  
+  // Keep TCP socket alive to prevent cloud DB timeouts
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 });
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle PostgreSQL client:', err);
+// Handle unexpected errors on idle pool clients without crashing Node process
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle PostgreSQL client:', err.message);
 });
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
   getClient: () => pool.connect(),
+  pool
 };
