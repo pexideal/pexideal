@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
+  <title>Admin Control Panel - Pexideal</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+  <nav class="navbar admin-nav">
+    <div class="logo">Pexideal <span>ADMIN</span></div>
+    <button id="adminLogoutBtn" class="btn btn-outline">Logout</button>
+  </nav>
+
+  <main class="container">
+    <h1>Platform Dashboard</h1>
+
+    <!-- Key Metrics Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Clients</h3>
+        <p class="stat-number" id="statUsers">0</p>
+      </div>
+      <div class="stat-card">
+        <h3>Active Passes</h3>
+        <p class="stat-number" id="statCards">0</p>
+      </div>
+      <div class="stat-card">
+        <h3>Affiliate Merchants</h3>
+        <p class="stat-number" id="statMerchants">0</p>
+      </div>
+      <div class="stat-card">
+        <h3>Total Redemptions</h3>
+        <p class="stat-number" id="statRedemptions">0</p>
+      </div>
+    </div>
+
+    <!-- Recent System Redemptions -->
+    <section class="mt-4">
+      <h2>Recent Discount Redemptions</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Store ID</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="redemptionsTable">
+          <tr><td colspan="3">Loading metrics...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="../js/app.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <rect width="600" height="400" fill="#1e293b" />
+  <g fill="#334155" text-anchor="middle">
+    <!-- Store Silhouette Icon -->
+    <path d="M 260 160 L 340 160 L 350 200 L 250 200 Z M 240 210 L 360 210 L 360 260 L 240 260 Z" />
+    <circle cx="300" cy="140" r="12" fill="#4f46e5" />
+    <text x="300" y="300" font-family="-apple-system, sans-serif" font-size="18" font-weight="600" fill="#94a3b8">Merchant Image Coming Soon</text>
+  </g>
+</svg>

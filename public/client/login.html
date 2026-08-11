@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pexideal | Passholder Sign In</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
+
+  <!-- Bootstrap 5 & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Shared Custom Stylesheets -->
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .auth-card {
+      background-color: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1.25rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    .form-control {
+      background-color: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+    }
+
+    .form-control:focus {
+      background-color: #0f172a;
+      border-color: #6366f1;
+      color: #ffffff;
+      box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+    }
+
+    .form-control::placeholder {
+      color: #94a3b8;
+    }
+
+    .input-group-text {
+      background-color: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+      border-radius: 0.75rem;
+    }
+
+    .btn-primary-custom {
+      background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+      border: none;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 50rem;
+      transition: opacity 0.2s ease, transform 0.1s ease;
+    }
+
+    .btn-primary-custom:hover {
+      opacity: 0.95;
+      color: #ffffff;
+    }
+
+    .btn-primary-custom:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body class="p-3 p-md-4">
+
+  <!-- TOP BRAND HEADER -->
+  <header class="text-center my-3">
+    <a href="../index.html" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+      <img src="../assets/images/logo.svg" alt="Pexideal Logo" height="36" onerror="this.onerror=null; this.src='../assets/images/placeholder-store.svg';">
+      <span class="fs-4 fw-bold text-white">Pexideal</span>
+    </a>
+  </header>
+
+  <!-- LOGIN CARD CONTAINER -->
+  <main class="container my-auto max-w-md" style="max-width: 440px;">
+    <div class="card auth-card p-4 p-sm-5">
+      
+      <div class="text-center mb-4">
+        <h3 class="fw-bold text-white mb-1">Passholder Sign In</h3>
+        <p class="text-white-50 small">Access your digital loyalty pass & rewards</p>
+      </div>
+
+      <!-- Alert Notification Area -->
+      <div id="auth-alert" class="alert d-none rounded-3 py-2 px-3 small mb-3" role="alert"></div>
+
+      <!-- Sign In Form -->
+      <form id="client-login-form" novalidate>
+        
+        <!-- Phone / Email Field -->
+        <div class="mb-3">
+          <label for="login-identifier" class="form-label text-white-50 small fw-semibold">Phone Number or Email</label>
+          <div class="input-group">
+            <span class="input-group-text border-end-0"><i class="bi bi-person"></i></span>
+            <input type="text" id="login-identifier" class="form-control border-start-0" placeholder="e.g. +267 71 234 567 or user@mail.com" required>
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label for="login-password" class="form-label text-white-50 small fw-semibold mb-0">Passcode / Password</label>
+            <a href="#" class="text-info text-decoration-none fs-7 opacity-75">Forgot?</a>
+          </div>
+          <div class="input-group">
+            <span class="input-group-text border-end-0"><i class="bi bi-lock"></i></span>
+            <input type="password" id="login-password" class="form-control border-start-0 border-end-0" placeholder="••••••••" required>
+            <button class="btn btn-outline-secondary border-start-0 text-white-50 input-group-text" type="button" id="btn-toggle-password">
+              <i class="bi bi-eye" id="toggle-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember Me Checkbox -->
+        <div class="form-check mb-4">
+          <input class="form-check-input bg-dark border-secondary" type="checkbox" id="remember-me" checked>
+          <label class="form-check-label text-white-50 small" for="remember-me">
+            Keep me signed in on this device
+          </label>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary-custom w-100 mb-3" id="btn-submit">
+          <span>Sign In to Pass</span>
+        </button>
+
+      </form>
+
+      <!-- Registration Redirect -->
+      <div class="text-center mt-3 pt-3 border-top border-secondary border-opacity-25">
+        <p class="text-white-50 small mb-0">Don't have a Pexideal Pass yet?</p>
+        <a href="signup.html" class="text-info text-decoration-none fw-semibold small">Get Your Pass Now &rarr;</a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="text-center text-white-50 small py-3 fs-7">
+    &copy; 2026 Pexideal. All rights reserved.
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Centralized Authentication Script -->
+  <script src="../js/auth.js"></script>
+
+  <!-- Local Interface Interactions -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const passwordInput = document.getElementById('login-password');
+      const togglePasswordBtn = document.getElementById('btn-toggle-password');
+      const toggleIcon = document.getElementById('toggle-icon');
+
+      if (togglePasswordBtn && passwordInput && toggleIcon) {
+        togglePasswordBtn.addEventListener('click', () => {
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          toggleIcon.classList.toggle('bi-eye');
+          toggleIcon.classList.toggle('bi-eye-slash');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

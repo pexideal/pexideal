@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pexideal | Partner Stores</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
+
+  <!-- Bootstrap 5 & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .navbar-custom {
+      background-color: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .store-card {
+      background-color: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .store-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.4);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .store-img {
+      height: 140px;
+      object-fit: cover;
+      background-color: #0f172a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .form-control, .form-select {
+      background-color: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border-radius: 0.75rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      background-color: #1e293b;
+      border-color: #6366f1;
+      color: #ffffff;
+      box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+    }
+
+    .form-control::placeholder {
+      color: #94a3b8;
+    }
+
+    .discount-badge {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      color: #ffffff;
+      font-weight: 600;
+    }
+  </style>
+
+  <script>
+    // Immediate Token Auth Guard
+    const token = localStorage.getItem('pexideal_client_token') || localStorage.getItem('pexideal_token');
+    if (!token) {
+      window.location.href = 'login.html';
+    }
+  </script>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top py-2 px-3 px-md-4">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="../index.html">
+        <img src="../assets/images/logo.svg" alt="Pexideal Logo" height="32" onerror="this.onerror=null; this.src='../assets/images/placeholder-store.svg';">
+        <span class="fw-bold fs-5 text-white">Pexideal</span>
+      </a>
+
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <a href="dashboard.html" class="btn btn-outline-light btn-sm rounded-pill px-3">
+          <i class="bi bi-person-vcard me-1"></i> My Pass
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <main class="container py-4 py-md-5 my-auto">
+
+    <!-- PAGE HEADER -->
+    <header class="mb-4 text-center text-md-start">
+      <h2 class="fw-bold text-white mb-1">Affiliated Partner Stores</h2>
+      <p class="text-white-50 mb-0">Visit any of these locations and scan your Pexideal pass for instant discounts.</p>
+    </header>
+
+    <!-- SEARCH & FILTER BAR -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-8 col-lg-9">
+        <div class="input-group">
+          <span class="input-group-text bg-dark border-secondary border-opacity-25 text-white-50"><i class="bi bi-search"></i></span>
+          <input type="text" id="searchInput" class="form-control" placeholder="Search stores by name, location, or tag...">
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-3">
+        <select id="categoryFilter" class="form-select">
+          <option value="ALL">All Categories</option>
+          <option value="Food & Beverage">Food & Beverage</option>
+          <option value="Retail & Fashion">Retail & Fashion</option>
+          <option value="Health & Beauty">Health & Beauty</option>
+          <option value="Services">Services</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- STORE CARDS GRID -->
+    <div id="storeGrid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      
+      <!-- Skeleton Placeholder Loading State -->
+      <div class="col store-item">
+        <div class="card store-card p-3 placeholder-glow">
+          <div class="placeholder rounded bg-secondary w-100 mb-3" style="height: 120px;"></div>
+          <span class="placeholder col-6 mb-2"></span>
+          <span class="placeholder col-4 mb-3"></span>
+          <span class="placeholder col-8"></span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="text-center text-white-50 small py-3 mt-auto fs-7 border-top border-secondary border-opacity-10">
+    &copy; 2026 Pexideal. All rights reserved.
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/app.js"></script>
+
+  <!-- Store Fetching & Filtering Logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const storeGrid = document.getElementById('storeGrid');
+      const searchInput = document.getElementById('searchInput');
+      const categoryFilter = document.getElementById('categoryFilter');
+
+      let storesData = [
+        {
+          id: 1,
+          name: 'Urban Café',
+          category: 'Food & Beverage',
+          discount: '15% Off All Orders',
+          location: 'Main Street Mall, Gaborone',
+          image: '../assets/images/placeholder-store.svg'
+        },
+        {
+          id: 2,
+          name: 'Apex Fitness Gym',
+          category: 'Services',
+          discount: '20% Off Monthly Pass',
+          location: 'CBD, Gaborone',
+          image: '../assets/images/placeholder-store.svg'
+        },
+        {
+          id: 3,
+          name: 'Metro Styles Boutique',
+          category: 'Retail & Fashion',
+          discount: '10% Off Apparel',
+          location: 'Airport Junction, Gaborone',
+          image: '../assets/images/placeholder-store.svg'
+        }
+      ];
+
+      async function loadStores() {
+        try {
+          // Attempt API fetch if available
+          const fetchFn = typeof apiFetch === 'function' ? apiFetch : null;
+          if (fetchFn) {
+            const res = await fetchFn('/api/stores');
+            if (res && res.success && Array.isArray(res.stores)) {
+              storesData = res.stores;
+            }
+          }
+        } catch (err) {
+          console.warn('Using default fallback store list:', err);
+        } finally {
+          renderStores(storesData);
+        }
+      }
+
+      function renderStores(list) {
+        if (!storeGrid) return;
+
+        if (list.length === 0) {
+          storeGrid.innerHTML = `
+            <div class="col-12 text-center py-5">
+              <i class="bi bi-shop-window display-4 text-white-50 mb-3 d-block"></i>
+              <h5 class="text-white">No partner stores found</h5>
+              <p class="text-white-50 small">Try adjusting your search criteria or filter options.</p>
+            </div>
+          `;
+          return;
+        }
+
+        storeGrid.innerHTML = list.map(store => `
+          <div class="col store-item" data-category="${store.category || ''}" data-name="${(store.name || '').toLowerCase()}">
+            <div class="card store-card">
+              <img src="${store.image || '../assets/images/placeholder-store.svg'}" 
+                   class="card-img-top store-img" 
+                   alt="${store.name}" 
+                   onerror="this.onerror=null; this.src='../assets/images/placeholder-store.svg';">
+              <div class="card-body d-flex flex-column justify-content-between p-3">
+                <div>
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title fw-bold text-white mb-0 fs-6">${store.name}</h5>
+                    <span class="badge bg-secondary bg-opacity-25 text-white-50 border border-secondary border-opacity-25 fs-7">${store.category || 'Partner'}</span>
+                  </div>
+                  <p class="card-text text-white-50 small mb-3">
+                    <i class="bi bi-geo-alt me-1 text-info"></i> ${store.location || 'Partner Branch'}
+                  </p>
+                </div>
+                <div>
+                  <div class="discount-badge rounded-3 py-2 px-3 text-center small mb-0">
+                    <i class="bi bi-tag-fill me-1"></i> ${store.discount || 'Special VIP Offer'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function filterStores() {
+        const query = searchInput.value.toLowerCase().trim();
+        const selectedCat = categoryFilter.value;
+
+        const filtered = storesData.filter(store => {
+          const matchesQuery = !query || 
+            store.name.toLowerCase().includes(query) || 
+            (store.location && store.location.toLowerCase().includes(query));
+
+          const matchesCat = selectedCat === 'ALL' || store.category === selectedCat;
+
+          return matchesQuery && matchesCat;
+        });
+
+        renderStores(filtered);
+      }
+
+      searchInput?.addEventListener('input', filterStores);
+      categoryFilter?.addEventListener('change', filterStores);
+
+      loadStores();
+    });
+  </script>
+</body>
+</html>

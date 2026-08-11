@@ -1,6 +1,6 @@
 /**
  * Main Express Application Server
- * File: server.js
+ * File: server/server.js
  */
 
 const express = require('express');
@@ -9,8 +9,10 @@ const path = require('path');
 require('dotenv').config();
 
 // Route Imports
-const authRoutes = require('./server/routes/auth');
-const verifyRoutes = require('./server/routes/verify');
+const authRoutes = require('./routes/auth');
+const cardRoutes = require('./routes/card');
+const redemptionRoutes = require('./routes/redemptions');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -24,11 +26,11 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or Postman) or GitHub Pages (*.github.io)
+    // Allow requests with no origin (mobile apps, Postman) or GitHub Pages (*.github.io)
     if (!origin || origin.includes('github.io') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive during setup
+    return callback(null, true); // Permissive during development
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -37,14 +39,34 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend files from the root directory
-app.use(express.static(path.join(__dirname, './')));
+// Serve static frontend assets from the public/ directory
+app.use(express.static(path.join(__dirname, '../public')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/v1/discounts', verifyRoutes);
+app.use('/api/cards', cardRoutes);
+app.use('/v1/discounts', redemptionRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Healthcheck Route (Crucial for Render Deployment Checks)
+// Portal Entry Routes
+// Root route serves the main landing page (public/index.html)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.get('/client', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/client/signup.html'));
+});
+
+app.get('/affiliate', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/affiliate/signup.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin/login.html'));
+});
+
+// Healthcheck Route (Render readiness check)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -53,17 +75,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve index.html as fallback for root request if static files are requested
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// 404 Route Handler
+// 404 Route Handler for unmatched API/page endpoints
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Endpoint not found.' });
 });
 
-// Global Error Handler to stop server from freezing silently
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled Server Error:', err.stack);
   res.status(500).json({ success: false, message: 'Internal Server Error' });
