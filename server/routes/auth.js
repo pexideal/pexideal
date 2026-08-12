@@ -6,8 +6,9 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
-// Secret Key for JWT Signing (falls back to default during dev)
+// Secret Key for JWT Signing
 const JWT_SECRET = process.env.JWT_SECRET || 'pexideal_dev_secret_key_2026';
 
 // Helper: Generate Auth Token
@@ -20,26 +21,32 @@ const generateToken = (payload) => {
 // ==========================================
 
 /**
- * POST /api/auth/client/login
+ * POST /api/auth/client/login & /api/auth/login
  * Desc: Authenticate client/passholder via phone or email
  */
-router.post('/client/login', async (req, res) => {
+const handleClientLogin = async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const identifier = req.body.identifier || req.body.email;
+    const { password } = req.body;
 
     if (!identifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Phone/Email and passcode are required.'
+        message: 'Phone/Email and password are required.'
       });
     }
 
-    // TODO: Replace with DB query (e.g. User.findOne({ $or: [{ email }, { phone }] }))
+    // TODO: Replace mock user retrieval with DB lookup
+    // const user = await User.findOne({ $or: [{ email: identifier }, { phone: identifier }] });
     const mockUser = {
       id: 'client_101',
-      identifier: identifier,
+      firstName: 'Pexideal',
+      lastName: 'Passholder',
+      fullName: 'Pexideal Passholder',
+      email: identifier.includes('@') ? identifier : 'passholder@pexideal.com',
+      phone: !identifier.includes('@') ? identifier : '',
       role: 'client',
-      name: 'Pexideal Passholder'
+      tier: 'standard'
     };
 
     const token = generateToken(mockUser);
@@ -54,29 +61,40 @@ router.post('/client/login', async (req, res) => {
     console.error('Client Login Error:', error);
     return res.status(500).json({ success: false, message: 'Server authentication error.' });
   }
-});
+};
+
+router.post('/client/login', handleClientLogin);
+router.post('/login', handleClientLogin);
 
 /**
- * POST /api/auth/client/signup
+ * POST /api/auth/client/signup, /api/auth/register-client, /api/auth/signup
  * Desc: Register a new passholder
  */
-router.post('/client/signup', async (req, res) => {
+const handleClientSignup = async (req, res) => {
   try {
-    const { fullName, email, phone, password } = req.body;
+    const { firstName, lastName, fullName, email, phone, password, tier } = req.body;
 
-    if (!fullName || (!email && !phone) || !password) {
+    if ((!fullName && !firstName) || (!email && !phone) || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide required registration fields.'
       });
     }
 
+    // Hash password for security before DB save
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const derivedFullName = fullName || `${firstName || ''} ${lastName || ''}`.trim();
     const newUser = {
       id: `client_${Date.now()}`,
-      fullName,
+      firstName: firstName || derivedFullName.split(' ')[0],
+      lastName: lastName || derivedFullName.split(' ').slice(1).join(' '),
+      fullName: derivedFullName,
       email,
-      phone,
-      role: 'client'
+      phone: phone || '',
+      role: 'client',
+      tier: tier || 'standard',
+      createdAt: new Date().toISOString()
     };
 
     const token = generateToken(newUser);
@@ -85,13 +103,21 @@ router.post('/client/signup', async (req, res) => {
       success: true,
       message: 'Account created successfully!',
       token,
-      user: newUser
+      user: newUser,
+      card: {
+        cardNumber: `DC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        qrCodeToken: newUser.id
+      }
     });
   } catch (error) {
     console.error('Client Signup Error:', error);
     return res.status(500).json({ success: false, message: 'Registration failed.' });
   }
-});
+};
+
+router.post('/client/signup', handleClientSignup);
+router.post('/register-client', handleClientSignup);
+router.post('/signup', handleClientSignup);
 
 // ==========================================
 // 2. AFFILIATE / MERCHANT AUTHENTICATION
@@ -115,8 +141,8 @@ router.post('/affiliate/login', async (req, res) => {
     // TODO: Replace with DB lookup for Merchant profile
     const mockMerchant = {
       id: 'merch_501',
-      businessEmail: email,
-      storeName: 'Pexideal Partner Store',
+      email: email,
+      businessName: 'Pexideal Partner Store',
       role: 'affiliate'
     };
 
@@ -126,13 +152,58 @@ router.post('/affiliate/login', async (req, res) => {
       success: true,
       message: 'Merchant terminal unlocked.',
       token,
-      merchant: mockMerchant
+      user: mockMerchant,
+      merchant: mockMerchant // Preserved for backwards compatibility
     });
   } catch (error) {
     console.error('Merchant Login Error:', error);
     return res.status(500).json({ success: false, message: 'Merchant authentication error.' });
   }
 });
+
+/**
+ * POST /api/auth/affiliate/signup & /api/auth/register-merchant
+ * Desc: Onboard a new merchant or affiliate partner
+ */
+const handleMerchantSignup = async (req, res) => {
+  try {
+    const { businessName, category, email, password } = req.body;
+
+    if (!businessName || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Business name, email, and password are required.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newMerchant = {
+      id: `merch_${Date.now()}`,
+      businessName,
+      category: category || 'General',
+      email,
+      role: 'affiliate',
+      createdAt: new Date().toISOString()
+    };
+
+    const token = generateToken(newMerchant);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Merchant registered successfully!',
+      token,
+      user: newMerchant,
+      merchant: newMerchant
+    });
+  } catch (error) {
+    console.error('Merchant Signup Error:', error);
+    return res.status(500).json({ success: false, message: 'Merchant registration failed.' });
+  }
+};
+
+router.post('/affiliate/signup', handleMerchantSignup);
+router.post('/register-merchant', handleMerchantSignup);
 
 // ==========================================
 // 3. ADMIN CONSOLE AUTHENTICATION
@@ -153,7 +224,7 @@ router.post('/admin/login', async (req, res) => {
       });
     }
 
-    // TODO: Replace with secure admin credentials check
+    // TODO: Replace with secure admin DB check
     const mockAdmin = {
       id: 'admin_001',
       email: email,
@@ -167,7 +238,8 @@ router.post('/admin/login', async (req, res) => {
       success: true,
       message: 'Admin session authenticated.',
       token,
-      admin: mockAdmin
+      user: mockAdmin,
+      admin: mockAdmin // Preserved for backwards compatibility
     });
   } catch (error) {
     console.error('Admin Login Error:', error);

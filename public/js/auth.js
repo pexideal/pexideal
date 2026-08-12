@@ -8,9 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Helper: Toggle button loading state during API calls
   function setButtonLoading(buttonEl, isLoading, defaultText = 'Submit') {
     if (!buttonEl) return;
+    
     if (isLoading) {
+      if (!buttonEl.dataset.originalText) {
+        buttonEl.dataset.originalText = buttonEl.innerHTML;
+      }
       buttonEl.disabled = true;
-      buttonEl.dataset.originalText = buttonEl.innerHTML;
       buttonEl.innerHTML = `
         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
         Processing...
@@ -18,24 +21,48 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       buttonEl.disabled = false;
       buttonEl.innerHTML = buttonEl.dataset.originalText || defaultText;
+      delete buttonEl.dataset.originalText;
+    }
+  }
+
+  // Helper: Unified request error UI display
+  function displayFormError(containerEl, messageEl, message) {
+    if (containerEl) {
+      containerEl.className = 'alert alert-danger rounded-3 py-2 px-3 small mb-3';
+      if (messageEl) {
+        messageEl.textContent = message;
+      } else {
+        containerEl.textContent = message;
+      }
+      containerEl.classList.remove('d-none');
+    } else {
+      alert(message);
     }
   }
 
   // Helper: Fallback fetcher supporting both custom apiFetch helper and standard fetch
-  async function executeAuthRequest(endpoints, options) {
+  async function executeAuthRequest(endpoints, options = {}) {
     let lastError = null;
+
     for (const url of endpoints) {
       try {
         if (typeof apiFetch === 'function') {
           return await apiFetch(url, options);
         } else {
-          const res = await fetch(url, {
-            headers: { 'Content-Type': 'application/json' },
+          const fetchOptions = {
+            method: options.method || 'GET',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(options.headers || {})
+            },
             ...options
-          });
-          const data = await res.json();
+          };
+
+          const res = await fetch(url, fetchOptions);
+          const data = await res.json().catch(() => ({}));
+
           if (!res.ok || data.success === false) {
-            throw new Error(data.message || `HTTP error ${res.status}`);
+            throw new Error(data.message || `Request failed with status ${res.status}`);
           }
           return data;
         }
@@ -63,8 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Expose tier selection globally for onclick attributes
   window.selectTier = function(element) {
+    if (!element) return;
     document.querySelectorAll('.tier-option').forEach(el => el.classList.remove('selected'));
     element.classList.add('selected');
+
     const tier = element.getAttribute('data-tier') || 'standard';
     const tierLabel = document.getElementById('card-tier-label');
     if (tierLabel) {
@@ -99,12 +128,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const errorMessage = document.getElementById('error-message');
 
       if (errorAlert) errorAlert.classList.add('d-none');
+
       if (!rawIdentifier || !password) {
-        if (errorAlert) {
-          if (errorMessage) errorMessage.textContent = 'Please fill in all required fields.';
-          else errorAlert.textContent = 'Please fill in all required fields.';
-          errorAlert.classList.remove('d-none');
-        }
+        displayFormError(errorAlert, errorMessage, 'Please fill in all required fields.');
         return;
       }
 
@@ -150,17 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }, 800);
         }
       } catch (err) {
-        if (errorAlert) {
-          errorAlert.className = 'alert alert-danger rounded-3 py-2 px-3 small mb-3';
-          if (errorMessage) {
-            errorMessage.textContent = err.message || 'Invalid credentials. Please try again.';
-          } else {
-            errorAlert.textContent = err.message || 'Invalid credentials. Please try again.';
-          }
-          errorAlert.classList.remove('d-none');
-        } else {
-          alert(err.message || 'Login failed. Please check your credentials.');
-        }
+        displayFormError(errorAlert, errorMessage, err.message || 'Invalid credentials. Please try again.');
       } finally {
         setButtonLoading(submitBtn, false);
       }
@@ -175,6 +191,9 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       
       const submitBtn = clientForm.querySelector('button[type="submit"]');
+      const errorAlert = document.getElementById('auth-alert') || document.getElementById('error-alert');
+      const errorMessage = document.getElementById('error-message');
+
       const selectedTierEl = document.querySelector('.tier-option.selected');
       const tierName = selectedTierEl ? selectedTierEl.getAttribute('data-tier') : 'standard';
 
@@ -237,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (previewPlaceholder) previewPlaceholder.classList.add('d-none');
             issuedContainer.classList.remove('d-none');
 
-            // Automatically transition to client dashboard
             setTimeout(() => {
               window.location.href = '/client/dashboard.html';
             }, 2500);
@@ -246,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       } catch (err) {
-        alert(err.message || 'Client registration failed.');
+        displayFormError(errorAlert, errorMessage, err.message || 'Client registration failed.');
       } finally {
         setButtonLoading(submitBtn, false);
       }
@@ -261,6 +279,9 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       
       const submitBtn = merchForm.querySelector('button[type="submit"]');
+      const errorAlert = document.getElementById('auth-alert') || document.getElementById('error-alert');
+      const errorMessage = document.getElementById('error-message');
+
       const payload = {
         businessName: document.getElementById('business-name')?.value.trim(),
         category: document.getElementById('business-category')?.value,
@@ -289,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
           window.location.href = '/affiliate/dashboard.html';
         }
       } catch (err) {
-        alert(err.message || 'Merchant registration failed.');
+        displayFormError(errorAlert, errorMessage, err.message || 'Merchant registration failed.');
       } finally {
         setButtonLoading(submitBtn, false);
       }
