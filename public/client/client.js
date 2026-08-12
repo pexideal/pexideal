@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const hasToken = localStorage.getItem('pexideal_client_token') || localStorage.getItem('pexideal_token');
 
   if ((hasAuthObj && !Auth.isLoggedIn()) || (!hasAuthObj && !hasToken)) {
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
     return;
   }
 
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('pexideal_token');
       localStorage.removeItem('pexideal_user');
     }
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
   });
 
   // 8. Initial Execution

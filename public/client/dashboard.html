@@ -84,11 +84,14 @@
   </style>
 
   <script>
-    // Immediate Token Auth Guard
-    const token = localStorage.getItem('pexideal_client_token') || localStorage.getItem('pexideal_token');
+  // Immediate Token Auth Guard with Absolute Redirect
+  (function() {
+    const token = localStorage.getItem('pexideal_token') || localStorage.getItem('pexideal_client_token');
     if (!token) {
-      window.location.href = 'login.html';
+      window.location.replace('/login.html');
     }
+  })();
+    
   </script>
 </head>
 <body>
