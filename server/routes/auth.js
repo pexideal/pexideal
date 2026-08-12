@@ -63,7 +63,7 @@ const handleClientLogin = async (req, res) => {
   }
 };
 
-router.post('/client/login', handleClientLogin);
+router.post('/login', handleClientLogin);
 router.post('/login', handleClientLogin);
 
 /**

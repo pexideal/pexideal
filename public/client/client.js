@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('pexideal_token');
       localStorage.removeItem('pexideal_user');
     }
-    window.location.href = '/login.html';
+    window.location.href = 'login.html';
   });
 
   // 8. Initial Execution
