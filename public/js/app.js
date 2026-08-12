@@ -52,7 +52,7 @@ const Auth = {
     localStorage.removeItem(CONFIG.USER_KEY);
     
     // Always use absolute path to prevent subdirectory redirect loops (e.g. inside /client/)
-    window.location.href = '/login.html';
+    window.location.href = 'client/login.html';
   },
 
   /**

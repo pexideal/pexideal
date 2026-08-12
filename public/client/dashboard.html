@@ -88,7 +88,7 @@
   (function() {
     const token = localStorage.getItem('pexideal_token') || localStorage.getItem('pexideal_client_token');
     if (!token) {
-      window.location.replace('/login.html');
+      window.location.replace('./client/login.html');
     }
   })();
     
