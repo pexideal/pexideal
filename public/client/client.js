@@ -3,15 +3,6 @@
  * File: public/client/client.js
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Auth Enforcement & Guard
-  const hasAuthObj = typeof Auth !== 'undefined' && typeof Auth.isLoggedIn === 'function';
-  const hasToken = localStorage.getItem('pexideal_client_token') || localStorage.getItem('pexideal_token');
-
-  if ((hasAuthObj && !Auth.isLoggedIn()) || (!hasAuthObj && !hasToken)) {
-    window.location.href = 'login.html';
-    return;
-  }
 
   // 2. DOM Selectors
   const welcomeText = document.getElementById('welcomeText');
