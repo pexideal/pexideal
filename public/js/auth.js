@@ -40,6 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper: Safe input value reader to prevent TypeError on missing elements
+  function getInputValue(elementId) {
+    const el = document.getElementById(elementId);
+    return el ? el.value.trim() : '';
+  }
+
   // Helper: Fallback fetcher supporting both custom apiFetch helper and standard fetch
   async function executeAuthRequest(endpoints, options = {}) {
     let lastError = null;
@@ -48,29 +54,29 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         if (typeof apiFetch === 'function') {
           return await apiFetch(url, options);
-        } else {
-          const fetchOptions = {
-            method: options.method || 'GET',
-            headers: { 
-              'Content-Type': 'application/json',
-              ...(options.headers || {})
-            },
-            ...options
-          };
-
-          const res = await fetch(url, fetchOptions);
-          const data = await res.json().catch(() => ({}));
-
-          if (!res.ok || data.success === false) {
-            throw new Error(data.message || `Request failed with status ${res.status}`);
-          }
-          return data;
         }
+
+        const fetchOptions = {
+          method: options.method || 'GET',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+          },
+          ...options
+        };
+
+        const res = await fetch(url, fetchOptions);
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.success === false) {
+          throw new Error(data.message || `Request failed with status ${res.status}`);
+        }
+        return data;
       } catch (err) {
-        lastError = err;
+        lastError = err; // Fallback loop continues to next endpoint if request fails
       }
     }
-    throw lastError || new Error('Authentication request failed.');
+    throw lastError || new Error('Authentication request failed. Please check your network connection.');
   }
 
   // --- Live Preview & Tier Selection for Signup Pages ---
@@ -80,8 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (firstNameInput && cardNameLabel) {
     const updatePreviewName = () => {
-      const fn = firstNameInput?.value.trim() || '';
-      const ln = lastNameInput?.value.trim() || '';
+      const fn = getInputValue('first-name');
+      const ln = getInputValue('last-name');
       cardNameLabel.textContent = (fn || ln) ? `${fn} ${ln}` : 'Your Name Here';
     };
     firstNameInput.addEventListener('input', updatePreviewName);
@@ -101,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-
   // --- 1. Universal Login Form Handler (Client, Affiliate, Admin) ---
   const loginForm = document.getElementById('client-login-form') || 
                     document.getElementById('affiliate-login-form') || 
@@ -113,16 +118,16 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const submitBtn = document.getElementById('btn-submit') || loginForm.querySelector('button[type="submit"]');
       const rawIdentifier = (
-        document.getElementById('login-identifier') || 
-        document.getElementById('signin-email') || 
-        document.getElementById('email')
-      )?.value.trim();
+        getInputValue('login-identifier') || 
+        getInputValue('signin-email') || 
+        getInputValue('email')
+      );
 
       const password = (
-        document.getElementById('login-password') || 
-        document.getElementById('signin-password') || 
-        document.getElementById('password')
-      )?.value;
+        document.getElementById('login-password')?.value || 
+        document.getElementById('signin-password')?.value || 
+        document.getElementById('password')?.value || ''
+      );
 
       const errorAlert = document.getElementById('auth-alert') || document.getElementById('error-alert');
       const errorMessage = document.getElementById('error-message');
@@ -183,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
   // --- 2. Client Signup Handler ---
   const clientForm = document.getElementById('signup-form') || document.getElementById('client-signup-form');
   if (clientForm) {
@@ -197,16 +201,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const selectedTierEl = document.querySelector('.tier-option.selected');
       const tierName = selectedTierEl ? selectedTierEl.getAttribute('data-tier') : 'standard';
 
-      const firstName = document.getElementById('first-name')?.value.trim();
-      const lastName = document.getElementById('last-name')?.value.trim();
+      const firstName = getInputValue('first-name');
+      const lastName = getInputValue('last-name');
 
       const payload = {
         firstName,
         lastName,
-        fullName: `${firstName || ''} ${lastName || ''}`.trim(),
-        email: document.getElementById('email')?.value.trim(),
-        phone: document.getElementById('phone')?.value.trim() || '',
-        password: document.getElementById('password')?.value,
+        fullName: `${firstName} ${lastName}`.trim(),
+        email: getInputValue('email'),
+        phone: getInputValue('phone'),
+        password: document.getElementById('password')?.value || '',
         tier: tierName,
         tierName: tierName,
         role: 'client'
@@ -271,7 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-
   // --- 3. Merchant / Affiliate Onboarding Handler ---
   const merchForm = document.getElementById('affiliate-signup-form') || document.getElementById('merchant-signup-form');
   if (merchForm) {
@@ -283,10 +286,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const errorMessage = document.getElementById('error-message');
 
       const payload = {
-        businessName: document.getElementById('business-name')?.value.trim(),
-        category: document.getElementById('business-category')?.value,
-        email: (document.getElementById('merch-email') || document.getElementById('email'))?.value.trim(),
-        password: (document.getElementById('merch-password') || document.getElementById('password'))?.value,
+        businessName: getInputValue('business-name'),
+        category: getInputValue('business-category'),
+        email: getInputValue('merch-email') || getInputValue('email'),
+        password: (document.getElementById('merch-password') || document.getElementById('password'))?.value || '',
         role: 'affiliate'
       };
 
