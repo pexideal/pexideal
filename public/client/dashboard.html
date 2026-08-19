@@ -82,21 +82,6 @@
       background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 100%);
     }
   </style>
-
-  <script>
-  (function() {
-    const token = localStorage.getItem('pexideal_client_token') || 
-                  localStorage.getItem('pexideal_token') || 
-                  localStorage.getItem('pexideal_affiliate_token');
-
-    console.log('Head Guard Token Check:', token ? 'Token Present' : 'Token Missing');
-
-    if (!token) {
-      console.trace('Redirecting to login due to missing token');
-      window.location.replace('login.html');
-    }
-  })();
-  </script>
 </head>
 <body>
 
