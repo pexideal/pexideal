@@ -3,13 +3,11 @@
  * File: js/app.js
  */
 
-// Dynamically use localhost during development, and Render in production
 const IS_LOCAL = window.location.hostname === 'localhost' || 
                  window.location.hostname === '127.0.0.1' || 
                  window.location.protocol === 'file:';
 
 const CONFIG = {
-  // Stripped trailing slash to prevent double slashes in API endpoints
   API_BASE_URL: IS_LOCAL 
     ? 'http://127.0.0.1:5000' 
     : 'https://pexideal.onrender.com', 
@@ -18,21 +16,12 @@ const CONFIG = {
 };
 
 const Auth = {
-  /**
-   * Get stored JWT token across primary, client, or affiliate storage keys
-   * @returns {string|null}
-   */
   getToken() {
     return localStorage.getItem(CONFIG.TOKEN_KEY) || 
            localStorage.getItem('pexideal_client_token') || 
            localStorage.getItem('pexideal_affiliate_token');
   },
 
-  /**
-   * Save authentication state synchronously across key namespaces
-   * @param {string} token 
-   * @param {Object} [user] 
-   */
   setSession(token, user) {
     if (!token) return;
     localStorage.setItem(CONFIG.TOKEN_KEY, token);
@@ -42,23 +31,20 @@ const Auth = {
     }
   },
 
-  /**
-   * Clear all auth tokens and session keys, then perform a root-relative redirect
-   */
   logout() {
     localStorage.removeItem(CONFIG.TOKEN_KEY);
     localStorage.removeItem('pexideal_client_token');
     localStorage.removeItem('pexideal_affiliate_token');
     localStorage.removeItem(CONFIG.USER_KEY);
     
-    // Always use absolute path to prevent subdirectory redirect loops (e.g. inside /client/)
-    window.location.href = '../client/login.html';
+    const path = window.location.pathname;
+    if (path.includes('/client/') || path.includes('/affiliate/') || path.includes('/admin/')) {
+      window.location.href = 'login.html';
+    } else {
+      window.location.href = 'client/login.html';
+    }
   },
 
-  /**
-   * Get logged-in user profile from localStorage
-   * @returns {Object|null}
-   */
   getUser() {
     const raw = localStorage.getItem(CONFIG.USER_KEY);
     try {
@@ -69,28 +55,14 @@ const Auth = {
     }
   },
 
-  /**
-   * Check if user is currently authenticated
-   * @returns {boolean}
-   */
   isLoggedIn() {
     return !!this.getToken();
   }
 };
 
-/**
- * Universal Fetch Wrapper with Auth Headers, Base URL Resolution & Trailing Slash Safety
- * @param {string} endpoint - API route path or full URL
- * @param {Object} [options] - Fetch options
- * @returns {Promise<any>}
- */
 async function apiFetch(endpoint, options = {}) {
   const token = Auth.getToken();
-  
-  // Ensure endpoint starts with a slash if relative
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  
-  // Build full URL if absolute URL is not provided
   const url = endpoint.startsWith('http') 
     ? endpoint 
     : `${CONFIG.API_BASE_URL}${formattedEndpoint}`;
@@ -102,12 +74,8 @@ async function apiFetch(endpoint, options = {}) {
   };
 
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers
-    });
+    const response = await fetch(url, { ...options, headers });
     
-    // Auto logout on expired session or unauthorized response
     if (response.status === 401 || response.status === 403) {
       console.warn('Session expired or unauthorized. Logging out...');
       Auth.logout();

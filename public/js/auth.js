@@ -5,7 +5,6 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // Helper: Toggle button loading state during API calls
   function setButtonLoading(buttonEl, isLoading, defaultText = 'Submit') {
     if (!buttonEl) return;
     
@@ -25,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Helper: Unified request error UI display
   function displayFormError(containerEl, messageEl, message) {
     if (containerEl) {
       containerEl.className = 'alert alert-danger rounded-3 py-2 px-3 small mb-3';
@@ -40,13 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Helper: Safe input value reader to prevent TypeError on missing elements
   function getInputValue(elementId) {
     const el = document.getElementById(elementId);
     return el ? el.value.trim() : '';
   }
 
-  // Helper: Fallback fetcher supporting both custom apiFetch helper and standard fetch
   async function executeAuthRequest(endpoints, options = {}) {
     let lastError = null;
 
@@ -73,41 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return data;
       } catch (err) {
-        lastError = err; // Fallback loop continues to next endpoint if request fails
+        lastError = err;
       }
     }
     throw lastError || new Error('Authentication request failed. Please check your network connection.');
   }
 
-  // --- Live Preview & Tier Selection for Signup Pages ---
-  const firstNameInput = document.getElementById('first-name');
-  const lastNameInput = document.getElementById('last-name');
-  const cardNameLabel = document.getElementById('card-name-label');
-
-  if (firstNameInput && cardNameLabel) {
-    const updatePreviewName = () => {
-      const fn = getInputValue('first-name');
-      const ln = getInputValue('last-name');
-      cardNameLabel.textContent = (fn || ln) ? `${fn} ${ln}` : 'Your Name Here';
-    };
-    firstNameInput.addEventListener('input', updatePreviewName);
-    if (lastNameInput) lastNameInput.addEventListener('input', updatePreviewName);
-  }
-
-  // Expose tier selection globally for onclick attributes
-  window.selectTier = function(element) {
-    if (!element) return;
-    document.querySelectorAll('.tier-option').forEach(el => el.classList.remove('selected'));
-    element.classList.add('selected');
-
-    const tier = element.getAttribute('data-tier') || 'standard';
-    const tierLabel = document.getElementById('card-tier-label');
-    if (tierLabel) {
-      tierLabel.textContent = tier === 'vip' ? 'VIP All-Access' : 'Standard Pass';
-    }
-  };
-
-  // --- 1. Universal Login Form Handler (Client, Affiliate, Admin) ---
   const loginForm = document.getElementById('client-login-form') || 
                     document.getElementById('affiliate-login-form') || 
                     document.getElementById('admin-login-form');
@@ -168,17 +135,16 @@ document.addEventListener('DOMContentLoaded', () => {
             errorAlert.classList.remove('d-none');
           }
 
-          // Role-based or path-based dashboard redirection
           const role = data.user?.role;
           setTimeout(() => {
             if (role === 'affiliate' || role === 'merchant' || window.location.pathname.includes('/affiliate/')) {
-              window.location.href = '/affiliate/dashboard.html';
+              window.location.href = '../affiliate/dashboard.html';
             } else if (role === 'admin' || window.location.pathname.includes('/admin/')) {
-              window.location.href = '/admin/dashboard.html';
+              window.location.href = '../admin/dashboard.html';
             } else {
-              window.location.href = '/client/dashboard.html';
+              window.location.href = 'dashboard.html';
             }
-          }, 800);
+          }, 400);
         }
       } catch (err) {
         displayFormError(errorAlert, errorMessage, err.message || 'Invalid credentials. Please try again.');
@@ -188,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- 2. Client Signup Handler ---
   const clientForm = document.getElementById('signup-form') || document.getElementById('client-signup-form');
   if (clientForm) {
     clientForm.addEventListener('submit', async (e) => {
@@ -234,38 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.user) localStorage.setItem('pexideal_user', JSON.stringify(data.user));
           }
 
-          // Dynamic Instant Card UI updates
-          const issuedContainer = document.getElementById('issued-pass-container');
-          const previewPlaceholder = document.getElementById('preview-placeholder');
-
-          if (issuedContainer) {
-            const userFirstName = data.user?.firstName || data.user?.first_name || payload.firstName;
-            const cardCode = data.user?.id || data.user?.cardCode || data.card?.cardNumber || 'DC-2026-ACTIVE';
-            const qrToken = data.card?.qrCodeToken || cardCode;
-
-            const nameEl = document.getElementById('user-first-name');
-            const cardNumEl = document.getElementById('issued-card-number');
-            const tierBadgeEl = document.getElementById('issued-tier-badge');
-
-            if (nameEl) nameEl.textContent = userFirstName;
-            if (cardNumEl) cardNumEl.textContent = cardCode;
-            if (tierBadgeEl) tierBadgeEl.textContent = `${tierName.toUpperCase()} PASS`;
-            
-            const qrImgEl = document.getElementById('issued-qr');
-            if (qrImgEl) {
-              const qrData = `PEXIDEAL:${qrToken}:${cardCode}`;
-              qrImgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
-            }
-
-            if (previewPlaceholder) previewPlaceholder.classList.add('d-none');
-            issuedContainer.classList.remove('d-none');
-
-            setTimeout(() => {
-              window.location.href = '/client/dashboard.html';
-            }, 2500);
-          } else {
-            window.location.href = '/client/dashboard.html';
-          }
+          setTimeout(() => {
+            window.location.href = 'dashboard.html';
+          }, 800);
         }
       } catch (err) {
         displayFormError(errorAlert, errorMessage, err.message || 'Client registration failed.');
@@ -274,50 +210,4 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
-  // --- 3. Merchant / Affiliate Onboarding Handler ---
-  const merchForm = document.getElementById('affiliate-signup-form') || document.getElementById('merchant-signup-form');
-  if (merchForm) {
-    merchForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const submitBtn = merchForm.querySelector('button[type="submit"]');
-      const errorAlert = document.getElementById('auth-alert') || document.getElementById('error-alert');
-      const errorMessage = document.getElementById('error-message');
-
-      const payload = {
-        businessName: getInputValue('business-name'),
-        category: getInputValue('business-category'),
-        email: getInputValue('merch-email') || getInputValue('email'),
-        password: (document.getElementById('merch-password') || document.getElementById('password'))?.value || '',
-        role: 'affiliate'
-      };
-
-      setButtonLoading(submitBtn, true);
-
-      try {
-        const endpoints = ['/api/auth/affiliate/signup', '/api/auth/register-merchant'];
-        const data = await executeAuthRequest(endpoints, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-
-        if (data.success) {
-          if (typeof Auth !== 'undefined' && Auth.setSession) {
-            Auth.setSession(data.token, data.user);
-          } else if (data.token) {
-            localStorage.setItem('pexideal_token', data.token);
-            localStorage.setItem('pexideal_affiliate_token', data.token);
-            if (data.user) localStorage.setItem('pexideal_user', JSON.stringify(data.user));
-          }
-          window.location.href = '/affiliate/dashboard.html';
-        }
-      } catch (err) {
-        displayFormError(errorAlert, errorMessage, err.message || 'Merchant registration failed.');
-      } finally {
-        setButtonLoading(submitBtn, false);
-      }
-    });
-  }
-
 });

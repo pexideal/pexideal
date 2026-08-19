@@ -3,6 +3,16 @@
  * File: public/client/client.js
  */
 
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Auth Enforcement & Guard
+  const token = (typeof Auth !== 'undefined' && Auth.getToken()) || 
+                localStorage.getItem('pexideal_client_token') || 
+                localStorage.getItem('pexideal_token');
+
+  if (!token) {
+    window.location.href = 'login.html';
+    return;
+  }
 
   // 2. DOM Selectors
   const welcomeText = document.getElementById('welcomeText');
@@ -16,23 +26,22 @@
   const qrTimer = document.getElementById('qrTimer');
   const qrProgressBar = document.getElementById('qrProgressBar');
 
-  // Timer & QR state constants
   const ROTATION_INTERVAL_SEC = 60;
   let remainingSeconds = ROTATION_INTERVAL_SEC;
   let timerInterval = null;
   let qrCodeInstance = null;
 
-  // 3. Helper: Fetch wrapper fallback if apiFetch is not globally exposed
+  // 3. Helper: Fetch wrapper
   async function fetchPassData() {
     if (typeof apiFetch === 'function') {
       return await apiFetch('/api/cards/my-card');
     }
 
-    const token = localStorage.getItem('pexideal_client_token') || localStorage.getItem('pexideal_token');
+    const currentToken = Auth.getToken();
     const response = await fetch('/api/cards/my-card', {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${currentToken}`
       }
     });
     return await response.json();
@@ -41,7 +50,6 @@
   // 4. Fetch and Render Pass Data
   async function loadPassData() {
     try {
-      // Set User Display Info
       if (typeof Auth !== 'undefined' && typeof Auth.getUser === 'function') {
         const user = Auth.getUser();
         if (user && (user.fullName || user.name)) {
@@ -51,7 +59,6 @@
         }
       }
 
-      // Fetch Card payload
       const res = await fetchPassData();
 
       if (res && res.success && res.card) {
@@ -60,11 +67,9 @@
         if (cardNumber) cardNumber.textContent = card.cardNumber || 'PEXI-0000-0000-0000';
         if (cardHolder && card.holderName) cardHolder.textContent = card.holderName;
 
-        // Status Badge Formatting
         if (cardStatus && card.status) {
           const statusUpper = card.status.toUpperCase();
           cardStatus.textContent = statusUpper;
-
           cardStatus.className = 'badge px-2 py-1 fs-7 ';
           if (statusUpper === 'ACTIVE') {
             cardStatus.classList.add('bg-success');
@@ -75,7 +80,6 @@
           }
         }
 
-        // Expiry Date Formatting
         if (cardExpiry && card.expiresAt) {
           const expDate = new Date(card.expiresAt);
           cardExpiry.textContent = isNaN(expDate.getTime()) 
@@ -83,13 +87,11 @@
             : expDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
         }
 
-        // QR Code Generation
         if (card.qrToken) {
           renderQrCode(card.qrToken);
           resetCountdownTimer();
         }
       } else {
-        console.warn('Card details missing or inactive pass response:', res);
         renderQrCodeFallback('NO_ACTIVE_PASS');
       }
     } catch (err) {
@@ -101,7 +103,6 @@
   // 5. Render Dynamic QR Code
   function renderQrCode(tokenString) {
     if (!qrcodeContainer) return;
-
     qrcodeContainer.innerHTML = '';
     
     if (typeof QRCode !== 'undefined') {
@@ -127,13 +128,12 @@
     `;
   }
 
-  // 6. Countdown Timer & Auto Rotation Logic
+  // 6. Countdown Timer
   function startCountdownTimer() {
     if (timerInterval) clearInterval(timerInterval);
 
     timerInterval = setInterval(() => {
       remainingSeconds--;
-
       if (qrTimer) qrTimer.textContent = `${remainingSeconds}s`;
 
       if (qrProgressBar) {
@@ -171,11 +171,9 @@
     if (typeof Auth !== 'undefined' && typeof Auth.logout === 'function') {
       Auth.logout();
     } else {
-      localStorage.removeItem('pexideal_client_token');
-      localStorage.removeItem('pexideal_token');
-      localStorage.removeItem('pexideal_user');
+      localStorage.clear();
+      window.location.href = 'login.html';
     }
-    window.location.href = 'login.html';
   });
 
   // 8. Initial Execution
