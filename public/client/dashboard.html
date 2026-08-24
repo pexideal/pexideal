@@ -78,13 +78,23 @@
 
   <script>
     (function() {
-      const token = localStorage.getItem('pexideal_client_token') || 
-                    localStorage.getItem('pexideal_token') || 
-                    localStorage.getItem('pexideal_affiliate_token');
-      if (!token) {
-        window.location.href = 'login.html';
-      }
-    })();
+    const keys = Object.keys(localStorage);
+    console.log('Available localStorage keys on load:', keys);
+    
+    const clientToken = localStorage.getItem('pexideal_client_token');
+    const token = localStorage.getItem('pexideal_token');
+    const affToken = localStorage.getItem('pexideal_affiliate_token');
+    
+    console.log({ pexideal_client_token: clientToken, pexideal_token: token, pexideal_affiliate_token: affToken });
+
+    if (!clientToken && !token && !affToken) {
+      console.warn('GUARD FAILED: No tokens found in localStorage!');
+      // Commented out temporarily for debugging:
+      // window.location.href = 'login.html';
+    } else {
+      console.log('GUARD PASSED: Valid token found!');
+    }
+  })();
   </script>
 </head>
 <body>
