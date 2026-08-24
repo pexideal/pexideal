@@ -68,7 +68,18 @@ const handleClientLogin = async (req, res) => {
       });
     }
 
-    // 3. Prepare payload & sanitize response
+    // 3. Query associated digital card if exists
+    const cardResult = await db.query(
+      `SELECT id, card_number, card_code, tier_name, qr_code_token, status, expires_at 
+       FROM cards 
+       WHERE user_id = $1 
+       LIMIT 1`,
+      [user.id]
+    );
+
+    const card = cardResult.rows[0] || null;
+
+    // 4. Prepare payload & sanitize response
     const payload = {
       userId: user.id,
       id: user.id,
@@ -83,7 +94,8 @@ const handleClientLogin = async (req, res) => {
       success: true,
       message: 'Client authentication successful.',
       token,
-      user: payload
+      user: payload,
+      card
     });
 
   } catch (error) {
@@ -97,7 +109,7 @@ router.post('/login', handleClientLogin);
 
 /**
  * POST /api/auth/client/signup, /api/auth/register-client, /api/auth/signup
- * Desc: Register a new passholder directly into Neon DB
+ * Desc: Register a new passholder into Neon DB and automatically issue a dynamic digital pass
  */
 const handleClientSignup = async (req, res) => {
   try {
@@ -114,6 +126,7 @@ const handleClientSignup = async (req, res) => {
     const derivedLastName = lastName || (fullName ? fullName.split(' ').slice(1).join(' ') : '');
     const userEmail = email ? email.toLowerCase().trim() : null;
     const userPhone = phone ? phone.trim() : null;
+    const userTier = tier || 'standard';
 
     // 1. Check if user already exists in Neon DB
     const existingUser = await db.query(
@@ -136,32 +149,58 @@ const handleClientSignup = async (req, res) => {
       `INSERT INTO users (first_name, last_name, email, phone, password_hash, role, tier, created_at)
        VALUES ($1, $2, $3, $4, $5, 'client', $6, NOW())
        RETURNING id, first_name, last_name, email, phone, role, tier`,
-      [derivedFirstName, derivedLastName, userEmail, userPhone, hashedPassword, tier || 'standard']
+      [derivedFirstName, derivedLastName, userEmail, userPhone, hashedPassword, userTier]
     );
 
     const newUser = insertResult.rows[0];
 
-    // 4. Construct token payload
+    // 4. Auto-generate digital card details & QR payload
+    const cardNumber = `PEXI-${Math.floor(100000 + Math.random() * 900000)}`;
+    const qrToken = jwt.sign(
+      { userId: newUser.id, cardNumber, tier: newUser.tier },
+      JWT_SECRET || 'pexideal_dev_secret_key_2026',
+      { expiresIn: '365d' }
+    );
+
+    // 5. Save generated card into Neon DB
+    const cardInsertResult = await db.query(
+      `INSERT INTO cards (user_id, card_number, card_code, tier_name, qr_code_token, status)
+       VALUES ($1, $2, $3, $4, $5, 'active')
+       RETURNING id, card_number, card_code, tier_name, qr_code_token, status, expires_at`,
+      [newUser.id, cardNumber, cardNumber.replace('PEXI-', ''), newUser.tier, qrToken]
+    );
+
+    const newCard = cardInsertResult.rows[0];
+
+    // 6. Construct token payload
     const payload = {
       userId: newUser.id,
       id: newUser.id,
       email: newUser.email,
       fullName: `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim(),
-      role: newUser.role
+      role: newUser.role || 'client'
     };
 
     const token = generateToken(payload);
 
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully!',
+      message: 'Account created and digital pass issued successfully!',
       token,
-      user: payload
+      user: payload,
+      card: {
+        id: newCard.id,
+        cardNumber: newCard.card_number,
+        tierName: newCard.tier_name,
+        qrCodeToken: newCard.qr_code_token,
+        status: newCard.status,
+        expiresAt: newCard.expires_at
+      }
     });
 
   } catch (error) {
     console.error('Client Signup Error:', error);
-    return res.status(500).json({ success: false, message: 'Registration failed.' });
+    return res.status(500).json({ success: false, message: 'Registration failed: ' + error.message });
   }
 };
 
