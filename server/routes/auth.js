@@ -9,16 +9,20 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 
-// Secret Key for JWT Signing
+// Read secrets directly from environment variables
 const JWT_SECRET = process.env.JWT_SECRET;
+const QR_HMAC_SECRET = process.env.QR_HMAC_SECRET || JWT_SECRET;
 
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  console.warn('⚠️ WARNING: JWT_SECRET environment variable is missing.');
+if (!JWT_SECRET) {
+  console.warn('⚠️ WARNING: JWT_SECRET environment variable is missing from .env!');
 }
 
 // Helper: Generate Auth Token
 const generateToken = (payload) => {
-  return jwt.sign(payload, JWT_SECRET || 'pexideal_dev_secret_key_2026', { expiresIn: '7d' });
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured on the server.');
+  }
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 };
 
 // ==========================================
@@ -31,8 +35,8 @@ const generateToken = (payload) => {
  */
 const handleClientLogin = async (req, res) => {
   try {
-    const identifier = req.body.identifier || req.body.email;
-    const { password } = req.body;
+    const identifier = req.body?.identifier || req.body?.email;
+    const password = req.body?.password;
 
     if (!identifier || !password) {
       return res.status(400).json({
@@ -41,13 +45,15 @@ const handleClientLogin = async (req, res) => {
       });
     }
 
+    const cleanIdentifier = String(identifier).trim();
+
     // 1. Query user from Neon DB
     const userResult = await db.query(
       `SELECT id, first_name, last_name, email, phone, password_hash, role, tier 
        FROM users 
        WHERE email = $1 OR phone = $1 
        LIMIT 1`,
-      [identifier]
+      [cleanIdentifier]
     );
 
     if (userResult.rows.length === 0) {
@@ -99,8 +105,17 @@ const handleClientLogin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Client Login Error:', error);
-    return res.status(500).json({ success: false, message: 'Server authentication error.' });
+    console.error('====================================');
+    console.error('❌ CLIENT LOGIN ERROR AT:', new Date().toISOString());
+    console.error('Error Message:', error.message);
+    console.error('Stack Trace:', error.stack);
+    console.error('Request Body:', req.body);
+    console.error('====================================');
+
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server authentication error: ' + error.message 
+    });
   }
 };
 
@@ -112,8 +127,10 @@ router.post('/login', handleClientLogin);
  * Desc: Register a new passholder into Neon DB and automatically issue a dynamic digital pass
  */
 const handleClientSignup = async (req, res) => {
+  let client;
+
   try {
-    const { firstName, lastName, fullName, email, phone, password, tier } = req.body;
+    const { firstName, lastName, fullName, email, phone, password, tier } = req.body || {};
 
     if ((!fullName && !firstName) || (!email && !phone) || !password) {
       return res.status(400).json({
@@ -122,19 +139,27 @@ const handleClientSignup = async (req, res) => {
       });
     }
 
-    const derivedFirstName = firstName || (fullName ? fullName.split(' ')[0] : '');
-    const derivedLastName = lastName || (fullName ? fullName.split(' ').slice(1).join(' ') : '');
-    const userEmail = email ? email.toLowerCase().trim() : null;
-    const userPhone = phone ? phone.trim() : null;
+    const derivedFirstName = firstName || (fullName ? String(fullName).trim().split(' ')[0] : '');
+    const derivedLastName = lastName || (fullName ? String(fullName).trim().split(' ').slice(1).join(' ') : '');
+    const userEmail = email ? String(email).toLowerCase().trim() : null;
+    const userPhone = phone ? String(phone).trim() : null;
     const userTier = tier || 'standard';
 
+    if (typeof db.getClient === 'function') {
+      client = await db.getClient();
+      await client.query('BEGIN');
+    }
+
+    const queryRunner = client || db;
+
     // 1. Check if user already exists in Neon DB
-    const existingUser = await db.query(
+    const existingUser = await queryRunner.query(
       `SELECT id FROM users WHERE (email IS NOT NULL AND email = $1) OR (phone IS NOT NULL AND phone = $2) LIMIT 1`,
       [userEmail, userPhone]
     );
 
     if (existingUser.rows.length > 0) {
+      if (client) await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
         message: 'An account with this email or phone number already exists.'
@@ -145,7 +170,7 @@ const handleClientSignup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 3. Insert new user into Neon DB
-    const insertResult = await db.query(
+    const insertResult = await queryRunner.query(
       `INSERT INTO users (first_name, last_name, email, phone, password_hash, role, tier, created_at)
        VALUES ($1, $2, $3, $4, $5, 'client', $6, NOW())
        RETURNING id, first_name, last_name, email, phone, role, tier`,
@@ -154,21 +179,23 @@ const handleClientSignup = async (req, res) => {
 
     const newUser = insertResult.rows[0];
 
-    // 4. Auto-generate digital card details & QR payload
+    // 4. Auto-generate digital card details & QR payload using QR_HMAC_SECRET / JWT_SECRET
     const cardNumber = `PEXI-${Math.floor(100000 + Math.random() * 900000)}`;
     const qrToken = jwt.sign(
       { userId: newUser.id, cardNumber, tier: newUser.tier },
-      JWT_SECRET || 'pexideal_dev_secret_key_2026',
+      QR_HMAC_SECRET,
       { expiresIn: '365d' }
     );
 
     // 5. Save generated card into Neon DB
-    const cardInsertResult = await db.query(
+    const cardInsertResult = await queryRunner.query(
       `INSERT INTO cards (user_id, card_number, card_code, tier_name, qr_code_token, status)
        VALUES ($1, $2, $3, $4, $5, 'active')
        RETURNING id, card_number, card_code, tier_name, qr_code_token, status, expires_at`,
       [newUser.id, cardNumber, cardNumber.replace('PEXI-', ''), newUser.tier, qrToken]
     );
+
+    if (client) await client.query('COMMIT');
 
     const newCard = cardInsertResult.rows[0];
 
@@ -199,8 +226,25 @@ const handleClientSignup = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Client Signup Error:', error);
-    return res.status(500).json({ success: false, message: 'Registration failed: ' + error.message });
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+    }
+
+    console.error('====================================');
+    console.error('❌ CLIENT SIGNUP ERROR AT:', new Date().toISOString());
+    console.error('Error Message:', error.message);
+    console.error('Stack Trace:', error.stack);
+    console.error('Request Body:', req.body);
+    console.error('====================================');
+
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Registration failed: ' + error.message 
+    });
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
   }
 };
 
@@ -214,7 +258,7 @@ router.post('/signup', handleClientSignup);
 
 router.post('/affiliate/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
     if (!email || !password) {
       return res.status(400).json({
@@ -223,11 +267,13 @@ router.post('/affiliate/login', async (req, res) => {
       });
     }
 
+    const cleanEmail = String(email).toLowerCase().trim();
+
     const merchantResult = await db.query(
       `SELECT id, business_name, email, password_hash, role 
        FROM merchants 
        WHERE email = $1 LIMIT 1`,
-      [email]
+      [cleanEmail]
     );
 
     if (merchantResult.rows.length === 0) {
@@ -259,8 +305,17 @@ router.post('/affiliate/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Merchant Login Error:', error);
-    return res.status(500).json({ success: false, message: 'Merchant authentication error.' });
+    console.error('====================================');
+    console.error('❌ MERCHANT LOGIN ERROR AT:', new Date().toISOString());
+    console.error('Error Message:', error.message);
+    console.error('Stack Trace:', error.stack);
+    console.error('Request Body:', req.body);
+    console.error('====================================');
+
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Merchant authentication error: ' + error.message 
+    });
   }
 });
 
@@ -278,7 +333,7 @@ router.get('/verify', (req, res) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET || 'pexideal_dev_secret_key_2026');
+    const decoded = jwt.verify(token, JWT_SECRET);
     return res.status(200).json({
       success: true,
       valid: true,
