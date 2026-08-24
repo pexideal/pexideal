@@ -76,13 +76,21 @@ async function apiFetch(endpoint, options = {}) {
   try {
     const response = await fetch(url, { ...options, headers });
     
-    if (response.status === 401 || response.status === 403) {
-      console.warn('Session expired or unauthorized. Logging out...');
+    // Only 401 Unauthorized should logout (Invalid or Expired JWT)
+    if (response.status === 401) {
+      console.warn('Session expired. Logging out...');
       Auth.logout();
       throw new Error('Session expired. Please log in again.');
     }
 
     const data = await response.json();
+
+    // Handle 403 Forbidden without logging out
+    if (response.status === 403) {
+      console.error('403 Forbidden:', data.message || 'Access denied.');
+      throw new Error(data.message || 'You do not have permission to perform this action.');
+    }
+
     if (!response.ok) {
       throw new Error(data.message || `API request failed with status ${response.status}`);
     }
