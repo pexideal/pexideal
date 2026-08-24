@@ -3,7 +3,36 @@
  * File: js/auth.js
  */
 
+// 1. Global Tier Selection Handler (accessible via inline onclick or DOM listeners)
+window.selectTier = function (element) {
+  if (!element) return;
+  
+  // Clear selection from all tier option containers
+  document.querySelectorAll('.tier-option').forEach(el => el.classList.remove('selected'));
+  element.classList.add('selected');
+
+  const tier = element.getAttribute('data-tier') || 'standard';
+  const cardTierLabel = document.getElementById('card-tier-label');
+  const digitalCard = document.getElementById('digital-card');
+
+  if (cardTierLabel) {
+    cardTierLabel.textContent = tier === 'vip' ? 'VIP ALL-ACCESS PASS' : 'STANDARD PASS';
+  }
+
+  if (digitalCard) {
+    if (tier === 'vip') {
+      digitalCard.classList.add('vip');
+    } else {
+      digitalCard.classList.remove('vip');
+    }
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+
+  // ==========================================
+  // UTILITY & UI HELPERS
+  // ==========================================
 
   function setButtonLoading(buttonEl, isLoading, defaultText = 'Submit') {
     if (!buttonEl) return;
@@ -43,6 +72,44 @@ document.addEventListener('DOMContentLoaded', () => {
     return el ? el.value.trim() : '';
   }
 
+  /**
+   * Render Digital Pass & QR Code into DOM
+   */
+  function renderIssuedCard(cardData, fullName) {
+    const cardNumberEl = document.getElementById('card-number-label');
+    const cardNameEl = document.getElementById('card-name-label');
+    const cardTierEl = document.getElementById('card-tier-label');
+    const qrContainer = document.getElementById('issued-qr');
+
+    if (cardNumberEl && cardData?.cardNumber) {
+      cardNumberEl.textContent = cardData.cardNumber;
+    }
+    if (cardNameEl && fullName) {
+      cardNameEl.textContent = fullName;
+    }
+    if (cardTierEl && cardData?.tierName) {
+      cardTierEl.textContent = cardData.tierName === 'vip' ? 'VIP ALL-ACCESS PASS' : 'STANDARD PASS';
+    }
+
+    if (qrContainer && cardData?.qrCodeToken) {
+      qrContainer.innerHTML = '';
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(qrContainer, {
+          text: cardData.qrCodeToken,
+          width: 130,
+          height: 130,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      } else {
+        // Fallback QuickChart API image if QRCode library is unattached
+        const encodedToken = encodeURIComponent(cardData.qrCodeToken);
+        qrContainer.innerHTML = `<img src="https://quickchart.io/qr?text=${encodedToken}&size=130&margin=1" alt="Pass QR Code" style="width:100%; height:auto;" />`;
+      }
+    }
+  }
+
   async function executeAuthRequest(endpoints, options = {}) {
     let lastError = null;
 
@@ -74,6 +141,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     throw lastError || new Error('Authentication request failed. Please check your network connection.');
   }
+
+  // ==========================================
+  // REAL-TIME CARD PREVIEW INPUT SYNC
+  // ==========================================
+
+  const firstNameInput = document.getElementById('first-name');
+  const lastNameInput = document.getElementById('last-name');
+  const cardNameLabel = document.getElementById('card-name-label');
+
+  function updateCardNamePreview() {
+    if (!cardNameLabel) return;
+    const fName = getInputValue('first-name');
+    const lName = getInputValue('last-name');
+    const fullName = `${fName} ${lName}`.trim();
+    cardNameLabel.textContent = fullName.length > 0 ? fullName : 'Your Name Here';
+  }
+
+  if (firstNameInput) firstNameInput.addEventListener('input', updateCardNamePreview);
+  if (lastNameInput) lastNameInput.addEventListener('input', updateCardNamePreview);
+
+  // ==========================================
+  // LOGIN FORM HANDLER
+  // ==========================================
 
   const loginForm = document.getElementById('client-login-form') || 
                     document.getElementById('affiliate-login-form') || 
@@ -127,7 +217,12 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('pexideal_client_token', data.token);
             if (data.user) localStorage.setItem('pexideal_user', JSON.stringify(data.user));
           }
-          
+
+          if (data.card) {
+            localStorage.setItem('pexideal_card', JSON.stringify(data.card));
+            renderIssuedCard(data.card, data.user?.fullName);
+          }
+
           if (errorAlert) {
             errorAlert.className = 'alert alert-success rounded-3 py-2 px-3 small mb-3';
             if (errorMessage) errorMessage.textContent = 'Sign in successful! Redirecting...';
@@ -153,6 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // ==========================================
+  // SIGNUP FORM HANDLER (WITH SMOOTH VIEW TRANSITION)
+  // ==========================================
 
   const clientForm = document.getElementById('signup-form') || document.getElementById('client-signup-form');
   if (clientForm) {
@@ -181,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         role: 'client'
       };
 
+      if (errorAlert) errorAlert.classList.add('d-none');
       setButtonLoading(submitBtn, true);
 
       try {
@@ -191,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (data.success) {
+          // 1. Session & Card Storage
           if (typeof Auth !== 'undefined' && Auth.setSession) {
             Auth.setSession(data.token, data.user);
           } else if (data.token) {
@@ -199,9 +300,54 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.user) localStorage.setItem('pexideal_user', JSON.stringify(data.user));
           }
 
+          const card = data.card || {
+            cardNumber: 'DC-' + Math.floor(1000 + Math.random() * 9000) + '-2026',
+            qrCodeToken: data.token || 'PEXIDEAL-PASS-DEFAULT',
+            tierName: tierName
+          };
+
+          localStorage.setItem('pexideal_card', JSON.stringify(card));
+
+          // 2. Populate Issued View UI
+          const userFirstNameEl = document.getElementById('user-first-name');
+          const issuedTierBadge = document.getElementById('issued-tier-badge');
+          const issuedCardNumber = document.getElementById('issued-card-number');
+
+          if (userFirstNameEl) userFirstNameEl.textContent = firstName || 'Member';
+          if (issuedTierBadge) issuedTierBadge.textContent = tierName === 'vip' ? 'VIP Pass' : 'Standard Pass';
+          if (issuedCardNumber && card.cardNumber) issuedCardNumber.textContent = card.cardNumber;
+
+          // Generate QR code token in target div
+          renderIssuedCard(card, payload.fullName);
+
+          // 3. Perform View Switch with Smooth CSS Entrance
+          const formContainer = document.getElementById('form-container');
+          const previewPlaceholder = document.getElementById('preview-placeholder');
+          const issuedPassContainer = document.getElementById('issued-pass-container');
+
+          if (previewPlaceholder) previewPlaceholder.classList.add('d-none');
+
+          if (formContainer) {
+            formContainer.classList.add('d-none');
+            const rightCol = issuedPassContainer?.closest('.col-lg-5');
+            if (rightCol) {
+              rightCol.classList.remove('col-lg-5');
+              rightCol.classList.add('col-lg-6', 'mx-auto');
+            }
+          }
+
+          if (issuedPassContainer) {
+            issuedPassContainer.classList.remove('d-none');
+            // Small delay allows browser repaint before triggering CSS opacity/transform transition
+            setTimeout(() => {
+              issuedPassContainer.classList.add('pass-active');
+            }, 20);
+          }
+
+          // 4. Redirect after 3-second pass display
           setTimeout(() => {
             window.location.href = 'dashboard.html';
-          }, 800);
+          }, 3000);
         }
       } catch (err) {
         displayFormError(errorAlert, errorMessage, err.message || 'Client registration failed.');
