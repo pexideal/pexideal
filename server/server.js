@@ -8,6 +8,20 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+// Enforce essential environment variables before starting application
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'QR_HMAC_SECRET'];
+const missingVars = REQUIRED_ENV_VARS.filter((varName) => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error(`❌ FATAL CONFIGURATION ERROR: Missing required environment variable(s): ${missingVars.join(', ')}`);
+  console.error('Please check your .env file or host environment settings on Render.');
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  } else {
+    console.warn('⚠️ Running in non-production mode without all secret keys set. Authentication functions will fail.');
+  }
+}
+
 // Route Imports
 const authRoutes = require('./routes/auth');
 const cardRoutes = require('./routes/card');
@@ -21,7 +35,8 @@ const allowedOrigins = [
   'https://pexideal.onrender.com',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:5000'
 ];
 
 app.use(cors({
@@ -71,6 +86,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     system: 'Pexideal API',
+    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
@@ -90,4 +106,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Pexideal API Server running on port ${PORT}`);
+  console.log(`🔐 JWT_SECRET: ${process.env.JWT_SECRET ? 'Configured' : 'MISSING'}`);
+  console.log(`🔐 QR_HMAC_SECRET: ${process.env.QR_HMAC_SECRET ? 'Configured' : 'MISSING'}`);
 });
