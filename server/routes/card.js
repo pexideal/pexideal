@@ -9,12 +9,6 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const verifyToken = require('../middleware/auth');
 
-// Ensure QR_HMAC_SECRET is defined at server boot
-const QR_HMAC_SECRET = process.env.QR_HMAC_SECRET;
-if (!QR_HMAC_SECRET && process.env.NODE_ENV === 'production') {
-  console.warn('WARNING: QR_HMAC_SECRET environment variable is missing.');
-}
-
 /**
  * Helper: Generate formatted, cryptographically secure 16-digit card number
  * Format: PEXI-XXXX-XXXX-XXXX
@@ -27,14 +21,23 @@ function generateCardNumber() {
 
 /**
  * GET /api/cards/my-card
- * Fetches the logged-in client's active card details and generates a fresh signed QR token
+ * Fetches the logged-in client's active card details or auto-provisions one if missing.
  */
 router.get('/my-card', verifyToken, async (req, res) => {
-  const userId = req.user.userId;
+  // Support both 'userId' and 'id' from JWT payload
+  const userId = req.user?.userId || req.user?.id || req.user?.sub;
+
+  if (!userId) {
+    console.error('❌ Authentication payload missing user identifier:', req.user);
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid user token payload: missing user ID.'
+    });
+  }
 
   try {
-    // 1. Query user's active card
-    const cardResult = await db.query(
+    // 1. Query user's active card in Neon DB
+    let cardResult = await db.query(
       `SELECT id, card_number, status, expires_at, created_at 
        FROM cards 
        WHERE user_id = $1 AND status = 'active' 
@@ -42,22 +45,29 @@ router.get('/my-card', verifyToken, async (req, res) => {
       [userId]
     );
 
-    if (cardResult.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'No active Pexideal membership card found.' 
-      });
+    let card = cardResult.rows[0];
+
+    // 2. Auto-provision card if record does not exist in Neon DB yet
+    if (!card) {
+      console.warn(`⚠️ No active card found for user ${userId}. Auto-issuing new card...`);
+      const newCardNumber = generateCardNumber();
+
+      const insertResult = await db.query(
+        `INSERT INTO cards (user_id, card_number, status, expires_at)
+         VALUES ($1, $2, 'active', NOW() + INTERVAL '1 year')
+         RETURNING id, card_number, status, expires_at, created_at`,
+        [userId, newCardNumber]
+      );
+      card = insertResult.rows[0];
     }
 
-    const card = cardResult.rows[0];
+    // 3. Generate Cryptographic HMAC Signature for QR Code
     const timestamp = Math.floor(Date.now() / 1000);
-
-    // 2. Generate Cryptographic HMAC Signature
     const rawData = `${userId}:${card.id}:${timestamp}`;
-    const secret = QR_HMAC_SECRET || 'fallback_development_only_secret_key';
+    const secret = process.env.QR_HMAC_SECRET || 'fallback_development_only_secret_key';
     const signature = crypto.createHmac('sha256', secret).update(rawData).digest('hex');
 
-    // 3. Assemble complete QR token payload
+    // 4. Assemble complete QR token payload
     const qrToken = `${rawData}:${signature}`;
 
     return res.json({
@@ -68,15 +78,16 @@ router.get('/my-card', verifyToken, async (req, res) => {
         status: card.status,
         expiresAt: card.expires_at,
         qrToken: qrToken,
-        ttlSeconds: 60 // QR code refresh interval for the frontend UI
+        ttlSeconds: 60 // QR code refresh interval for frontend UI
       }
     });
 
   } catch (error) {
-    console.error('Error fetching card:', error);
+    console.error('❌ Error fetching card details from Neon DB:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Server error retrieving pass details.' 
+      message: 'Server error retrieving pass details.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -86,7 +97,14 @@ router.get('/my-card', verifyToken, async (req, res) => {
  * Issues a new Pexideal card for a client
  */
 router.post('/issue', verifyToken, async (req, res) => {
-  const userId = req.user.userId;
+  const userId = req.user?.userId || req.user?.id || req.user?.sub;
+
+  if (!userId) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid user token payload: missing user ID.' 
+    });
+  }
 
   try {
     // 1. Check if user already has a card
@@ -116,7 +134,6 @@ router.post('/issue', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    // Unique violation error handling for database constraint checks (PostgreSQL code 23505)
     if (error.code === '23505') {
       return res.status(400).json({ 
         success: false, 
