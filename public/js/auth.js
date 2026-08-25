@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setBtnLoading(btn, true);
 
     try {
-      const endpoint = isMerchant ? '/api/merchant/auth/login' : '/api/auth/client/login';
+      const endpoint = isMerchant ? '/api/auth/merchant/login' : '/api/auth/client/login';
       const data = await postAuth(endpoint, { identifier, email: identifier, password, rememberMe });
 
       if (data.success) {
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
           password
         };
 
-        const data = await postAuth('/api/merchant/auth/signup', merchantPayload);
+        const data = await postAuth('/api/auth/merchant/signup', merchantPayload);
 
         if (data.success) {
           const formContainer = document.getElementById('form-container');

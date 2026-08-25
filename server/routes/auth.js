@@ -364,7 +364,7 @@ const handleMerchantLogin = async (req, res) => {
 };
 
 router.post('/affiliate/login', handleMerchantLogin);
-router.post('/merchant/auth/login', handleMerchantLogin);
+router.post('/auth/merchant/login', handleMerchantLogin);
 
 /**
  * POST /api/merchant/auth/signup
@@ -477,7 +477,7 @@ const handleMerchantSignup = async (req, res) => {
   }
 };
 
-router.post('/merchant/auth/signup', handleMerchantSignup);
+router.post('/auth/merchant/signup', handleMerchantSignup);
 
 // ==========================================
 // 3. TOKEN VERIFICATION / SESSION CHECK
