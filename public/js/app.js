@@ -71,7 +71,7 @@ const Auth = {
     
     // Redirect logic based on section
     if (path.includes('/merchant/') || path.includes('/affiliate/') || path.includes('/partner/')) {
-      window.location.href = 'affiliate-login.html';
+      window.location.href = 'login.html';
     } else if (path.includes('/admin/')) {
       window.location.href = 'admin-login.html';
     } else {
