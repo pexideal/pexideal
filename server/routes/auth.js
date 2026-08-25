@@ -47,9 +47,9 @@ const handleClientLogin = async (req, res) => {
 
     const cleanIdentifier = String(identifier).trim();
 
-    // 1. Query user from Neon DB
+    // 1. Query user from Neon DB (Including status)
     const userResult = await db.query(
-      `SELECT id, first_name, last_name, email, phone, password_hash, role, tier 
+      `SELECT id, first_name, last_name, email, phone, password_hash, role, tier, status 
        FROM users 
        WHERE email = $1 OR phone = $1 
        LIMIT 1`,
@@ -64,6 +64,14 @@ const handleClientLogin = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+
+    // Check account status if present
+    if (user.status && user.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is currently inactive or suspended.'
+      });
+    }
 
     // 2. Verify hashed password
     const isMatch = await bcrypt.compare(password, user.password_hash);
@@ -91,7 +99,8 @@ const handleClientLogin = async (req, res) => {
       id: user.id,
       email: user.email,
       fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-      role: user.role || 'client'
+      role: user.role || 'client',
+      status: user.status || 'active'
     };
 
     const token = generateToken(payload);
@@ -130,7 +139,7 @@ const handleClientSignup = async (req, res) => {
   let client;
 
   try {
-    const { firstName, lastName, fullName, email, phone, password, tier } = req.body || {};
+    const { firstName, lastName, fullName, email, phone, password, tier, status } = req.body || {};
 
     if ((!fullName && !firstName) || (!email && !phone) || !password) {
       return res.status(400).json({
@@ -144,6 +153,7 @@ const handleClientSignup = async (req, res) => {
     const userEmail = email ? String(email).toLowerCase().trim() : null;
     const userPhone = phone ? String(phone).trim() : null;
     const userTier = tier || 'standard';
+    const userStatus = status || 'active';
 
     if (typeof db.getClient === 'function') {
       client = await db.getClient();
@@ -169,12 +179,12 @@ const handleClientSignup = async (req, res) => {
     // 2. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Insert new user into Neon DB
+    // 3. Insert new user into Neon DB (Explicitly writing status column)
     const insertResult = await queryRunner.query(
-      `INSERT INTO users (first_name, last_name, email, phone, password_hash, role, tier, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'client', $6, NOW())
-       RETURNING id, first_name, last_name, email, phone, role, tier`,
-      [derivedFirstName, derivedLastName, userEmail, userPhone, hashedPassword, userTier]
+      `INSERT INTO users (first_name, last_name, email, phone, password_hash, role, tier, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'client', $6, $7, NOW())
+       RETURNING id, first_name, last_name, email, phone, role, tier, status`,
+      [derivedFirstName, derivedLastName, userEmail, userPhone, hashedPassword, userTier, userStatus]
     );
 
     const newUser = insertResult.rows[0];
@@ -205,7 +215,8 @@ const handleClientSignup = async (req, res) => {
       id: newUser.id,
       email: newUser.email,
       fullName: `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim(),
-      role: newUser.role || 'client'
+      role: newUser.role || 'client',
+      status: newUser.status || 'active'
     };
 
     const token = generateToken(payload);
