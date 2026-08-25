@@ -110,36 +110,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function executeAuthRequest(endpoints, options = {}) {
-    let lastError = null;
+  async function executeAuthRequest(endpoint, options = {}) {
+    const targetUrl = Array.isArray(endpoint) ? endpoint[0] : endpoint;
 
-    for (const url of endpoints) {
-      try {
-        if (typeof apiFetch === 'function') {
-          return await apiFetch(url, options);
-        }
-
-        const fetchOptions = {
-          method: options.method || 'GET',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-          },
-          ...options
-        };
-
-        const res = await fetch(url, fetchOptions);
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || data.success === false) {
-          throw new Error(data.message || `Request failed with status ${res.status}`);
-        }
-        return data;
-      } catch (err) {
-        lastError = err;
-      }
+    if (typeof apiFetch === 'function') {
+      return await apiFetch(targetUrl, options);
     }
-    throw lastError || new Error('Authentication request failed. Please check your network connection.');
+
+    const fetchOptions = {
+      method: options.method || 'GET',
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    };
+
+    const res = await fetch(targetUrl, fetchOptions);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.success === false) {
+      throw new Error(data.message || `Request failed with status ${res.status}`);
+    }
+    return data;
   }
 
   // ==========================================
@@ -199,8 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonLoading(submitBtn, true);
 
       try {
-        const endpoints = ['/api/auth/client/login', '/api/auth/login'];
-        const data = await executeAuthRequest(endpoints, {
+        const data = await executeAuthRequest('/api/auth/client/login', {
           method: 'POST',
           body: JSON.stringify({
             identifier: rawIdentifier,
@@ -250,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // SIGNUP FORM HANDLER (WITH SMOOTH VIEW TRANSITION)
+  // SIGNUP FORM HANDLER
   // ==========================================
 
   const clientForm = document.getElementById('signup-form') || document.getElementById('client-signup-form');
@@ -284,8 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setButtonLoading(submitBtn, true);
 
       try {
-        const endpoints = ['/api/auth/client/signup', '/api/auth/register-client', '/api/auth/signup'];
-        const data = await executeAuthRequest(endpoints, {
+        const data = await executeAuthRequest('/api/auth/client/signup', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
@@ -338,7 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (issuedPassContainer) {
             issuedPassContainer.classList.remove('d-none');
-            // Small delay allows browser repaint before triggering CSS opacity/transform transition
             setTimeout(() => {
               issuedPassContainer.classList.add('pass-active');
             }, 20);
@@ -351,7 +341,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         displayFormError(errorAlert, errorMessage, err.message || 'Client registration failed.');
-      } finally {
         setButtonLoading(submitBtn, false);
       }
     });

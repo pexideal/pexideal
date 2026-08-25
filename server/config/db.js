@@ -8,28 +8,43 @@ require('dotenv').config();
 
 const dbUrl = process.env.DATABASE_URL || '';
 
-// Automatically detect if SSL is needed (Neon, Supabase, Render, or explicit SSL string)
-const useSSL = 
+// Detect SSL requirements (Neon, Supabase, Render, or sslmode parameters)
+const requiresSSL = 
   process.env.NODE_ENV === 'production' || 
   dbUrl.includes('neon.tech') || 
   dbUrl.includes('supabase') || 
-  dbUrl.includes('sslmode=require');
+  dbUrl.includes('sslmode=');
 
 const pool = new Pool({
   connectionString: dbUrl,
-  ssl: useSSL ? { rejectUnauthorized: false } : false,
+  // Use explicit SSL configuration for cloud databases
+  ssl: requiresSSL ? { rejectUnauthorized: false } : false,
   
   // Connection Pool & Timeout Safeguards
   max: 10,                          // Maximum number of clients in the pool
   idleTimeoutMillis: 30000,         // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000,   // Give server 10s to establish initial connection
+  connectionTimeoutMillis: 10000,   // Give server 10s to establish connection
   
   // Keep TCP socket alive to prevent cloud DB timeouts
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000
 });
 
-// Handle unexpected errors on idle pool clients without crashing Node process
+// Test and log initial connection attempt
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('====================================');
+    console.error('❌ POSTGRES DB CONNECTION ERROR:');
+    console.error('Message:', err.message);
+    console.error('Code:', err.code);
+    console.error('====================================');
+  } else {
+    console.log('✅ Connected successfully to Neon PostgreSQL database.');
+    release();
+  }
+});
+
+// Handle unexpected errors on idle pool clients without crashing process
 pool.on('error', (err, client) => {
   console.error('Unexpected error on idle PostgreSQL client:', err.message);
 });
