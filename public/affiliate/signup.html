@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
   <title>Partner With Pexideal | Grow Your Local Business</title>
+  
   <link rel="stylesheet" href="../css/style.css">
-<link rel="stylesheet" href="../css/dashboard.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  
   <style>
     :root {
       --primary-color: #4f46e5;
@@ -68,8 +70,8 @@
       <a href="../client/index.html" class="d-flex align-items-center text-decoration-none">
         <img src="../assets/images/logo.svg" alt="Pexideal Logo" height="42">
       </a>
-      <a href="dashboard.html" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Cashier Terminal
+      <a href="login.html" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Cashier Terminal Login
       </a>
     </div>
   </header>
@@ -126,8 +128,10 @@
               <p class="text-muted small">Fill out this quick application to create your merchant account and onboard your store.</p>
             </div>
 
-            <!-- Error Banner -->
-            <div id="auth-error" class="alert alert-danger d-none" role="alert"></div>
+            <!-- Dynamic Alert Message Container (handled by auth.js) -->
+            <div id="auth-alert" class="alert alert-danger rounded-3 py-2 px-3 small mb-3 d-none" role="alert">
+              <span id="error-message"></span>
+            </div>
 
             <form id="affiliate-signup-form" class="needs-validation" novalidate>
               <!-- Step 1: Business Details -->
@@ -236,7 +240,7 @@
             </form>
           </div>
 
-          <!-- Success Alert State (Hidden by default) -->
+          <!-- Success Alert State (Hidden by default, un-hidden by auth.js upon successful sign-up) -->
           <div id="form-success" class="text-center py-4 d-none">
             <div class="benefit-icon bg-success bg-opacity-10 text-success mx-auto mb-3" style="width: 64px; height: 64px; font-size: 2rem;">
               <i class="bi bi-check-lg"></i>
@@ -252,6 +256,7 @@
     </div>
   </div>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/app.js"></script>
   <script src="../js/auth.js"></script>

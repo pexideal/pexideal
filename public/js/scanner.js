@@ -37,6 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Hardware Scanner Listener (Listens for fast typing/Enter key from USB barcode scanners)
+  const manualInput = document.getElementById('manual-qr-input');
+  manualInput?.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      const scannedVal = manualInput.value.trim();
+      if (scannedVal) {
+        handleScannedToken(scannedVal);
+        manualInput.value = ''; // Reset input field for next scan
+      }
+    }
+  });
+
   window.addEventListener('online', () => {
     updateNetworkUI();
     syncPendingRedemptions();
@@ -44,6 +56,21 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('offline', updateNetworkUI);
   updateNetworkUI();
 });
+
+/**
+ * Single Entry Point for Processing Scanned Tokens (Camera or Hardware Input)
+ */
+async function handleScannedToken(qrToken) {
+  if (!qrToken) return;
+  await validateToken(qrToken);
+}
+
+/**
+ * Web Camera Listener (html5-qrcode callback)
+ */
+function onCameraScanSuccess(decodedText) {
+  handleScannedToken(decodedText);
+}
 
 /**
  * Validate Token - Online API with Offline Fallback
@@ -55,54 +82,85 @@ async function validateToken(tokenString) {
   }
 
   try {
-    const data = await apiFetch('/v1/discounts/verify', {
+    const response = await apiFetch('/api/merchant/scan-pass', {
       method: 'POST',
-      body: JSON.stringify({ token: tokenString, storeId: STORE_ID })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qrToken: tokenString, storeId: STORE_ID })
     });
 
-    if (data.success) {
-      showSuccessUI(data.customer, data.discount, false);
+    if (response && response.success) {
+      showSuccessUI(response.member, false);
     } else {
-      showInvalidUI(data.message || 'Pass invalid or expired.');
+      showInvalidUI((response && response.message) || 'Pass invalid or expired.');
     }
   } catch (err) {
-    console.warn('Network timeout. Switching to local offline check...', err);
+    console.warn('Network timeout or endpoint error. Switching to local offline check...', err);
     handleOfflineValidation(tokenString);
   }
 }
 
 /**
- * Local Cryptographic Timestamp Check (Offline Mode)
+ * Local Cryptographic & Offline Check (Offline Mode)
  */
 function handleOfflineValidation(tokenString) {
-  const parts = tokenString.split(':');
-  if (parts.length !== 4) {
-    showInvalidUI('Invalid QR Token format.');
-    return;
+  let userId = 'Offline User';
+  let cardId = tokenString;
+
+  // Handle JWT / Structured PEXI Tokens (Format: PEXI:<jwt> or <header>.<payload>.<sig>)
+  if (tokenString.startsWith('PEXI:') || tokenString.includes('.')) {
+    const rawJwt = tokenString.replace('PEXI:', '');
+    const parts = rawJwt.split('.');
+
+    if (parts.length === 3) {
+      try {
+        const payload = JSON.parse(atob(parts[1]));
+        cardId = payload.cardNumber || cardId;
+        userId = payload.userId ? `User #${payload.userId}` : userId;
+
+        // Verify Expiration if present inside JWT payload
+        if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
+          showInvalidUI('Pass expired. Ask customer to refresh QR.');
+          return;
+        }
+      } catch (e) {
+        showInvalidUI('Invalid QR Token payload.');
+        return;
+      }
+    }
+  } else {
+    // Legacy / 4-part colon format (userId:cardId:timestamp:sig)
+    const colonParts = tokenString.split(':');
+    if (colonParts.length === 4) {
+      const [uId, cId, timestampStr] = colonParts;
+      userId = `User #${uId}`;
+      cardId = cId;
+      const tokenTime = parseInt(timestampStr, 10);
+      const currentTime = Math.floor(Date.now() / 1000);
+
+      // 90s Expiration window check
+      if ((currentTime - tokenTime) > 90) {
+        showInvalidUI('Pass expired. Ask customer to refresh QR.');
+        return;
+      }
+    }
   }
 
-  const [userId, cardId, timestampStr] = parts;
-  const tokenTime = parseInt(timestampStr, 10);
-  const currentTime = Math.floor(Date.now() / 1000);
-
-  // 90s Expiration window
-  if ((currentTime - tokenTime) > 90) {
-    showInvalidUI('Pass expired. Ask customer to refresh QR.');
-    return;
-  }
-
-  // Double-scan protection
+  // Double-scan protection for offline queue
   const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
   if (queue.some(item => item.token === tokenString)) {
     showInvalidUI('This pass was already scanned offline!');
     return;
   }
 
-  // Queue for background sync
+  // Queue transaction for background sync when connection recovers
   queue.push({ token: tokenString, storeId: STORE_ID, scannedAt: new Date().toISOString() });
   localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
 
-  showSuccessUI({ name: 'Member (Offline Check)', cardId: cardId }, { title: 'Standard Discount' }, true);
+  showSuccessUI({
+    fullName: userId,
+    cardNumber: cardId,
+    tier: 'Offline Check'
+  }, true);
 }
 
 /**
@@ -113,12 +171,13 @@ async function syncPendingRedemptions() {
   if (queue.length === 0) return;
 
   try {
-    const response = await apiFetch('/v1/discounts/sync-offline', {
+    const response = await apiFetch('/api/merchant/scan-pass', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ batch: queue })
     });
 
-    if (response.success) {
+    if (response && response.success) {
       localStorage.removeItem(OFFLINE_QUEUE_KEY);
       window.dispatchEvent(new Event('online'));
     }
@@ -127,20 +186,35 @@ async function syncPendingRedemptions() {
   }
 }
 
-function showSuccessUI(customer, discount, isOffline = false) {
+/**
+ * UI Render Helpers
+ */
+function showSuccessUI(member, isOffline = false) {
   const offlineBanner = document.getElementById('offline-approval-banner');
   if (offlineBanner) {
     isOffline ? offlineBanner.classList.remove('d-none') : offlineBanner.classList.add('d-none');
   }
 
-  document.getElementById('member-name').textContent = customer.name;
-  document.getElementById('member-id').textContent = customer.cardId;
-  document.getElementById('discount-title').textContent = discount.title;
-  document.getElementById('result-success').style.display = 'block';
+  const nameElem = document.getElementById('member-name');
+  const idElem = document.getElementById('member-id');
+  const tierElem = document.getElementById('discount-title');
+  const invalidBox = document.getElementById('result-invalid');
+  const successBox = document.getElementById('result-success');
+
+  if (nameElem) nameElem.textContent = member.fullName || member.name || 'Member';
+  if (idElem) idElem.textContent = member.cardNumber || member.cardId || 'N/A';
+  if (tierElem) tierElem.textContent = member.tier ? `${member.tier.toUpperCase()} Member` : 'Standard Pass';
+
+  if (invalidBox) invalidBox.style.display = 'none';
+  if (successBox) successBox.style.display = 'block';
 }
 
 function showInvalidUI(reason) {
   const reasonElem = document.getElementById('invalid-reason');
+  const successBox = document.getElementById('result-success');
+  const invalidBox = document.getElementById('result-invalid');
+
   if (reasonElem) reasonElem.textContent = reason;
-  document.getElementById('result-invalid').style.display = 'block';
+  if (successBox) successBox.style.display = 'none';
+  if (invalidBox) invalidBox.style.display = 'block';
 }

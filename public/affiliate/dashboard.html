@@ -4,9 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
-  <title>Pexideal | Cashier Verification Scanner</title>
+  <title>Pexideal Partner | Cashier Verification Scanner</title>
+  
+  <!-- Bootstrap 5 & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  
+  <!-- Shared Custom Stylesheets -->
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+
   <style>
     body {
       background-color: #0f172a;
@@ -25,7 +33,7 @@
 
     /* Clean up html5-qrcode library default buttons */
     #reader button {
-      background-color: #4f46e5;
+      background-color: #10b981;
       color: white;
       border: none;
       padding: 10px 20px;
@@ -73,6 +81,7 @@
     /* Typography Utility */
     .fs-7 { font-size: 0.8rem; }
     .fs-8 { font-size: 0.7rem; }
+    .max-w-md { max-width: 480px; }
   </style>
 </head>
 <body class="d-flex flex-column justify-content-between p-3">
@@ -83,10 +92,10 @@
       <!-- Store & Brand Terminal Info -->
       <div class="d-flex align-items-center gap-2">
         <a href="index.html" class="d-inline-block">
-          <img src="../assets/images/logo.svg" alt="Pexideal Logo" height="32">
+          <img src="../assets/images/logo.svg" alt="Pexideal Logo" height="32" onerror="this.onerror=null; this.src='../assets/images/placeholder-store.svg';">
         </a>
         <div class="text-start ms-2 border-start border-secondary ps-2">
-          <h6 class="fw-bold mb-0" id="store-name-display">Affiliate Terminal</h6>
+          <h6 class="fw-bold mb-0 text-white" id="store-name-display">Affiliate Terminal</h6>
           <small class="text-white-50 fs-8" id="terminal-id-display">Terminal #01</small>
         </div>
       </div>
@@ -105,27 +114,36 @@
     </div>
   </header>
 
-  <main class="container max-w-md my-auto">
+  <!-- MAIN TERMINAL CONTENT -->
+  <main class="container max-w-md mx-auto my-auto">
     
+    <!-- Dynamic Alert Banner for Terminal Feedback -->
+    <div id="resultBanner" class="alert d-none mt-3" role="alert"></div>
+
     <!-- SCANNER VIEWPORT -->
     <div id="scanner-view" class="text-center">
       <p class="text-white-50 small mb-3">Align the customer's dynamic QR code within the frame</p>
       
+      <!-- Video Stream Viewport -->
       <div id="reader" class="shadow-lg"></div>
 
+      <!-- Manual Code Input Toggle -->
       <div class="mt-4">
         <button class="btn btn-outline-light btn-sm rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#manualEntry">
           <i class="bi bi-keyboard me-1"></i> Enter Code Manually
         </button>
       </div>
 
+      <!-- Manual Code Entry Form -->
       <div class="collapse mt-3" id="manualEntry">
         <div class="card card-body bg-dark border-secondary text-start">
-          <label for="manualCodeInput" class="form-label small text-white-50">Member Code / Token String</label>
-          <div class="input-group">
-            <input type="text" id="manualCodeInput" class="form-control bg-secondary text-white border-0" placeholder="Paste or type full QR token string">
-            <button class="btn btn-primary" id="btn-submit-manual">Verify</button>
-          </div>
+          <form id="verifyForm">
+            <label for="qrInput" class="form-label small text-white-50">Member Code / Token String</label>
+            <div class="input-group">
+              <input type="text" id="qrInput" class="form-control bg-secondary text-white border-0" placeholder="Paste or type full QR token string" required>
+              <button type="submit" class="btn btn-emerald text-white fw-semibold" style="background-color: #10b981;" id="btn-submit-manual">Verify</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -160,17 +178,27 @@
 
   </main>
 
-  <!-- FOOTER STATUS -->
-  <footer class="text-center text-white-50 small py-2 fs-7" id="footer-status">
-    <i class="bi bi-shield-check text-success me-1"></i> System Operational
+  <!-- FOOTER STATUS & OFFLINE SYNC TRIGGER -->
+  <footer class="text-center text-white-50 small py-2 fs-7 d-flex flex-column align-items-center gap-1" id="footer-status">
+    <div>
+      <i class="bi bi-shield-check text-success me-1"></i> System Operational
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button id="syncOfflineBtn" class="btn btn-sm btn-outline-light rounded-pill px-3 fs-8" disabled>
+        Sync Offline Redemptions <span id="offlineQueueBadge" class="badge bg-warning text-dark d-none ms-1">0</span>
+      </button>
+    </div>
   </footer>
 
   <!-- DEPENDENCIES -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- APP SCRIPTS -->
+  <!-- Shared & Merchant Logic Scripts -->
   <script src="../js/app.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="affiliate.js"></script>
   <script src="../js/scanner.js"></script>
+
 </body>
 </html>

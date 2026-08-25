@@ -83,13 +83,25 @@ const handleClientLogin = async (req, res) => {
     }
 
     // 3. Query associated digital card if exists
-    const cardResult = await db.query(
-      `SELECT id, card_number, card_code, tier_name, qr_code_token, status, expires_at 
-       FROM cards 
-       WHERE user_id = $1 
-       LIMIT 1`,
-      [user.id]
-    );
+    let cardResult;
+    try {
+      cardResult = await db.query(
+        `SELECT id, card_number, card_code, tier_name, qr_code_token, status, expires_at 
+         FROM cards 
+         WHERE user_id = $1 
+         LIMIT 1`,
+        [user.id]
+      );
+    } catch (_) {
+      // Fallback check for digital_cards table
+      cardResult = await db.query(
+        `SELECT id, card_number, tier AS tier_name, status, created_at AS expires_at 
+         FROM digital_cards 
+         WHERE user_id = $1 
+         LIMIT 1`,
+        [user.id]
+      );
+    }
 
     const card = cardResult.rows[0] || null;
 
@@ -179,7 +191,7 @@ const handleClientSignup = async (req, res) => {
     // 2. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. Insert new user into Neon DB (Explicitly writing status column)
+    // 3. Insert new user into Neon DB
     const insertResult = await queryRunner.query(
       `INSERT INTO users (first_name, last_name, email, phone, password_hash, role, tier, status, created_at)
        VALUES ($1, $2, $3, $4, $5, 'client', $6, $7, NOW())
@@ -189,21 +201,35 @@ const handleClientSignup = async (req, res) => {
 
     const newUser = insertResult.rows[0];
 
-    // 4. Auto-generate digital card details & QR payload using QR_HMAC_SECRET / JWT_SECRET
+    // 4. Auto-generate digital card details & formatted QR payload
     const cardNumber = `PEXI-${Math.floor(100000 + Math.random() * 900000)}`;
-    const qrToken = jwt.sign(
+    const signedJwt = jwt.sign(
       { userId: newUser.id, cardNumber, tier: newUser.tier },
       QR_HMAC_SECRET,
       { expiresIn: '365d' }
     );
+    const qrToken = `PEXI:${signedJwt}`;
 
     // 5. Save generated card into Neon DB
-    const cardInsertResult = await queryRunner.query(
-      `INSERT INTO cards (user_id, card_number, card_code, tier_name, qr_code_token, status)
-       VALUES ($1, $2, $3, $4, $5, 'active')
-       RETURNING id, card_number, card_code, tier_name, qr_code_token, status, expires_at`,
-      [newUser.id, cardNumber, cardNumber.replace('PEXI-', ''), newUser.tier, qrToken]
-    );
+    let cardInsertResult;
+    try {
+      cardInsertResult = await queryRunner.query(
+        `INSERT INTO cards (user_id, card_number, card_code, tier_name, qr_code_token, status)
+         VALUES ($1, $2, $3, $4, $5, 'active')
+         RETURNING id, card_number, card_code, tier_name, qr_code_token, status, expires_at`,
+        [newUser.id, cardNumber, cardNumber.replace('PEXI-', ''), newUser.tier, qrToken]
+      );
+    } catch (_) {
+      cardInsertResult = await queryRunner.query(
+        `INSERT INTO digital_cards (user_id, card_number, tier, status)
+         VALUES ($1, $2, $3, 'active')
+         RETURNING id, card_number, tier AS tier_name, status, created_at AS expires_at`,
+        [newUser.id, cardNumber, newUser.tier]
+      );
+      if (cardInsertResult.rows[0]) {
+        cardInsertResult.rows[0].qr_code_token = qrToken;
+      }
+    }
 
     if (client) await client.query('COMMIT');
 
@@ -230,7 +256,7 @@ const handleClientSignup = async (req, res) => {
         id: newCard.id,
         cardNumber: newCard.card_number,
         tierName: newCard.tier_name,
-        qrCodeToken: newCard.qr_code_token,
+        qrCodeToken: newCard.qr_code_token || qrToken,
         status: newCard.status,
         expiresAt: newCard.expires_at
       }
@@ -267,35 +293,41 @@ router.post('/signup', handleClientSignup);
 // 2. AFFILIATE / MERCHANT AUTHENTICATION
 // ==========================================
 
-router.post('/affiliate/login', async (req, res) => {
+/**
+ * POST /api/merchant/auth/login & /api/auth/affiliate/login
+ * Desc: Authenticate merchants/partners against the database
+ */
+const handleMerchantLogin = async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const identifier = req.body?.identifier || req.body?.email;
+    const password = req.body?.password;
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Business email and password are required.'
+        message: 'Store email/ID and password are required.'
       });
     }
 
-    const cleanEmail = String(email).toLowerCase().trim();
+    const cleanIdentifier = String(identifier).toLowerCase().trim();
 
     const merchantResult = await db.query(
       `SELECT id, business_name, email, password_hash, role 
        FROM merchants 
-       WHERE email = $1 LIMIT 1`,
-      [cleanEmail]
+       WHERE email = $1 OR business_name ILIKE $1 
+       LIMIT 1`,
+      [cleanIdentifier]
     );
 
     if (merchantResult.rows.length === 0) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid store credentials or password.' });
     }
 
     const merchant = merchantResult.rows[0];
     const isMatch = await bcrypt.compare(password, merchant.password_hash);
 
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid store credentials or password.' });
     }
 
     const payload = {
@@ -303,7 +335,7 @@ router.post('/affiliate/login', async (req, res) => {
       id: merchant.id,
       email: merchant.email,
       businessName: merchant.business_name,
-      role: 'affiliate'
+      role: merchant.role || 'affiliate'
     };
 
     const token = generateToken(payload);
@@ -312,7 +344,8 @@ router.post('/affiliate/login', async (req, res) => {
       success: true,
       message: 'Merchant terminal unlocked.',
       token,
-      user: payload
+      merchant: payload,
+      redirectUrl: 'dashboard.html'
     });
 
   } catch (error) {
@@ -328,7 +361,123 @@ router.post('/affiliate/login', async (req, res) => {
       message: 'Merchant authentication error: ' + error.message 
     });
   }
-});
+};
+
+router.post('/affiliate/login', handleMerchantLogin);
+router.post('/merchant/auth/login', handleMerchantLogin);
+
+/**
+ * POST /api/merchant/auth/signup
+ * Desc: Register a new merchant partner in the Neon database
+ */
+const handleMerchantSignup = async (req, res) => {
+  let client;
+
+  try {
+    const { businessName, category, location, website, offer, contact, password } = req.body || {};
+
+    if (!businessName || !category || !location || !contact?.email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please complete all required merchant registration fields.'
+      });
+    }
+
+    const cleanEmail = String(contact.email).toLowerCase().trim();
+
+    if (typeof db.getClient === 'function') {
+      client = await db.getClient();
+      await client.query('BEGIN');
+    }
+
+    const queryRunner = client || db;
+
+    // Check if merchant already exists
+    const existingMerchant = await queryRunner.query(
+      `SELECT id FROM merchants WHERE email = $1 LIMIT 1`,
+      [cleanEmail]
+    );
+
+    if (existingMerchant.rows.length > 0) {
+      if (client) await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'A merchant account with this email address already exists.'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert into merchants table
+    const insertResult = await queryRunner.query(
+      `INSERT INTO merchants (
+         business_name, category, location, website, 
+         discount_type, offer_headline, offer_terms, 
+         contact_name, contact_role, email, phone, 
+         password_hash, role, status, created_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'affiliate', 'active', NOW())
+       RETURNING id, business_name, email, role`,
+      [
+        businessName,
+        category,
+        location,
+        website || null,
+        offer?.type || 'discount',
+        offer?.headline || '',
+        offer?.terms || '',
+        contact?.fullName || '',
+        contact?.roleTitle || '',
+        cleanEmail,
+        contact?.phone || '',
+        hashedPassword
+      ]
+    );
+
+    if (client) await client.query('COMMIT');
+
+    const newMerchant = insertResult.rows[0];
+
+    const payload = {
+      userId: newMerchant.id,
+      id: newMerchant.id,
+      email: newMerchant.email,
+      businessName: newMerchant.business_name,
+      role: newMerchant.role
+    };
+
+    const token = generateToken(payload);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Merchant partner registration completed successfully!',
+      token,
+      merchant: payload
+    });
+
+  } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+    }
+
+    console.error('====================================');
+    console.error('❌ MERCHANT SIGNUP ERROR AT:', new Date().toISOString());
+    console.error('Error Message:', error.message);
+    console.error('Stack Trace:', error.stack);
+    console.error('Request Body:', req.body);
+    console.error('====================================');
+
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Merchant registration failed: ' + error.message 
+    });
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
+  }
+};
+
+router.post('/merchant/auth/signup', handleMerchantSignup);
 
 // ==========================================
 // 3. TOKEN VERIFICATION / SESSION CHECK

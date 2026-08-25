@@ -41,11 +41,15 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman) or GitHub Pages (*.github.io)
+    // Allow server-to-server requests or matching origins
     if (!origin || origin.includes('github.io') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive during development
+    // Block origins that do not match allowed list in production
+    if (process.env.NODE_ENV === 'production') {
+      return callback(new Error('CORS policy error: Origin not allowed.'));
+    }
+    return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -60,11 +64,10 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardRoutes);
-app.use('/v1/discounts', redemptionRoutes);
+app.use('/v1/discounts', redemptionRoutes); // Handles /verify and /sync-offline
 app.use('/api/admin', adminRoutes);
 
 // Portal Entry Routes
-// Root route serves the main landing page (public/index.html)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
@@ -98,7 +101,7 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled Server Error:', err.stack);
+  console.error('Unhandled Server Error:', err.stack || err.message);
   res.status(500).json({ success: false, message: 'Internal Server Error' });
 });
 
@@ -106,6 +109,4 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Pexideal API Server running on port ${PORT}`);
-  console.log(`🔐 JWT_SECRET: ${process.env.JWT_SECRET ? 'Configured' : 'MISSING'}`);
-  console.log(`🔐 QR_HMAC_SECRET: ${process.env.QR_HMAC_SECRET ? 'Configured' : 'MISSING'}`);
 });

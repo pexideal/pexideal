@@ -11,7 +11,7 @@ async function syncDatabaseWithoutDropping() {
     // 1. Enable UUID Extension
     await db.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
 
-    // 2. Ensure missing tables are created (with role in users)
+    // 2. Base Tables (without inline FK on card_scans to prevent type errors)
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -76,15 +76,54 @@ async function syncDatabaseWithoutDropping() {
         status VARCHAR(20) DEFAULT 'completed',
         redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS card_scans (
+        id SERIAL PRIMARY KEY,
+        card_number VARCHAR(100) NOT NULL,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        merchant_id UUID,
+        tier VARCHAR(50) DEFAULT 'standard',
+        status VARCHAR(50) DEFAULT 'valid',
+        scanned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
-    // 3. Remove obsolete columns from users table safely
+    // 3. Dynamic Foreign Key & Data Type Alignment
+    await db.query(`
+      DO $$
+      DECLARE
+        merchant_id_type text;
+      BEGIN
+        SELECT data_type INTO merchant_id_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'merchants' AND column_name = 'id';
+
+        ALTER TABLE card_scans DROP CONSTRAINT IF EXISTS card_scans_merchant_id_fkey;
+
+        IF merchant_id_type = 'uuid' THEN
+          ALTER TABLE card_scans 
+            ALTER COLUMN merchant_id TYPE UUID USING merchant_id::text::uuid;
+        ELSE
+          ALTER TABLE card_scans 
+            ALTER COLUMN merchant_id TYPE INT USING merchant_id::text::integer;
+        END IF;
+
+        ALTER TABLE card_scans 
+          ADD CONSTRAINT card_scans_merchant_id_fkey 
+          FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE;
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE NOTICE 'Foreign key adjustment note: %', SQLERRM;
+      END $$;
+    `);
+
+    // 4. Clean up legacy columns
     await db.query(`
       ALTER TABLE users DROP COLUMN IF EXISTS business_name;
       ALTER TABLE users DROP COLUMN IF EXISTS business_category;
     `);
 
-    // 4. Ensure role and tier columns exist on users
+    // 5. Ensure core user attributes exist
     await db.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'client';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR(50) DEFAULT 'standard';
@@ -92,7 +131,7 @@ async function syncDatabaseWithoutDropping() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `);
 
-    // 5. Add performance indexes
+    // 6. Performance Indexes
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
@@ -100,9 +139,12 @@ async function syncDatabaseWithoutDropping() {
       CREATE INDEX IF NOT EXISTS idx_cards_user_id ON cards(user_id);
       CREATE INDEX IF NOT EXISTS idx_cards_card_number ON cards(card_number);
       CREATE INDEX IF NOT EXISTS idx_merchants_email ON merchants(email);
+      CREATE INDEX IF NOT EXISTS idx_card_scans_user_id ON card_scans(user_id);
+      CREATE INDEX IF NOT EXISTS idx_card_scans_merchant_id ON card_scans(merchant_id);
+      CREATE INDEX IF NOT EXISTS idx_card_scans_card_number ON card_scans(card_number);
     `);
 
-    console.log('✅ Success! Retained role column and updated database schema.');
+    console.log('✅ Database schema migration complete.');
     process.exit(0);
   } catch (err) {
     console.error('❌ Error updating database schema:', err);
