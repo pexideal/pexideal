@@ -135,3 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPass(card, fullName);
         document.getElementById('form-container')?.classList.add('d-none');
         document.getElementById('issued-pass-container')?.classList.remove('d-none');
+
+        setTimeout(() => window.location.href = 'dashboard.html', 2500);
+      }
+    } catch (err) {
+      showError(err.message);
+      setBtnLoading(btn, false);
+    }
+  });
+});
