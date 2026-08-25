@@ -30,8 +30,7 @@ const generateToken = (payload) => {
 // ==========================================
 
 /**
- * POST /api/auth/client/login & /api/auth/login
- * Desc: Authenticate client/passholder via phone or email against Neon DB
+ * Handle client/passholder authentication via phone or email against Neon DB
  */
 const handleClientLogin = async (req, res) => {
   try {
@@ -140,12 +139,12 @@ const handleClientLogin = async (req, res) => {
   }
 };
 
+// Client Login Route Aliases
 router.post('/client/login', handleClientLogin);
 router.post('/login', handleClientLogin);
 
 /**
- * POST /api/auth/client/signup, /api/auth/register-client, /api/auth/signup
- * Desc: Register a new passholder into Neon DB and automatically issue a dynamic digital pass
+ * Handle passholder registration into Neon DB and automatically issue a dynamic digital pass
  */
 const handleClientSignup = async (req, res) => {
   let client;
@@ -285,6 +284,7 @@ const handleClientSignup = async (req, res) => {
   }
 };
 
+// Client Signup Route Aliases
 router.post('/client/signup', handleClientSignup);
 router.post('/register-client', handleClientSignup);
 router.post('/signup', handleClientSignup);
@@ -294,8 +294,7 @@ router.post('/signup', handleClientSignup);
 // ==========================================
 
 /**
- * POST /api/merchant/auth/login & /api/auth/affiliate/login
- * Desc: Authenticate merchants/partners against the database
+ * Handle merchant/partner authentication
  */
 const handleMerchantLogin = async (req, res) => {
   try {
@@ -363,27 +362,42 @@ const handleMerchantLogin = async (req, res) => {
   }
 };
 
+// Merchant Login Route Aliases
 router.post('/affiliate/login', handleMerchantLogin);
-router.post('/auth/merchant/login', handleMerchantLogin);
+router.post('/merchant/login', handleMerchantLogin);
+router.post('/merchant/auth/login', handleMerchantLogin);
 
 /**
- * POST /api/merchant/auth/signup
- * Desc: Register a new merchant partner in the Neon database
+ * Handle new merchant/partner registration in Neon DB
  */
 const handleMerchantSignup = async (req, res) => {
   let client;
 
   try {
-    const { businessName, category, location, website, offer, contact, password } = req.body || {};
+    const body = req.body || {};
+    
+    // Support both nested structure (contact.email) and flat structure (email)
+    const businessName = body.businessName || body.business_name;
+    const category = body.category || 'General';
+    const location = body.location || 'Default Location';
+    const website = body.website || null;
+    const email = body.contact?.email || body.email;
+    const phone = body.contact?.phone || body.phone || '';
+    const contactName = body.contact?.fullName || body.contactName || body.full_name || '';
+    const contactRole = body.contact?.roleTitle || body.contactRole || body.role_title || '';
+    const offerType = body.offer?.type || body.discount_type || 'discount';
+    const offerHeadline = body.offer?.headline || body.offer_headline || '';
+    const offerTerms = body.offer?.terms || body.offer_terms || '';
+    const password = body.password;
 
-    if (!businessName || !category || !location || !contact?.email || !password) {
+    if (!businessName || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please complete all required merchant registration fields.'
+        message: 'Business name, email, and password are required.'
       });
     }
 
-    const cleanEmail = String(contact.email).toLowerCase().trim();
+    const cleanEmail = String(email).toLowerCase().trim();
 
     if (typeof db.getClient === 'function') {
       client = await db.getClient();
@@ -421,14 +435,14 @@ const handleMerchantSignup = async (req, res) => {
         businessName,
         category,
         location,
-        website || null,
-        offer?.type || 'discount',
-        offer?.headline || '',
-        offer?.terms || '',
-        contact?.fullName || '',
-        contact?.roleTitle || '',
+        website,
+        offerType,
+        offerHeadline,
+        offerTerms,
+        contactName,
+        contactRole,
         cleanEmail,
-        contact?.phone || '',
+        phone,
         hashedPassword
       ]
     );
@@ -477,7 +491,10 @@ const handleMerchantSignup = async (req, res) => {
   }
 };
 
-router.post('/auth/merchant/signup', handleMerchantSignup);
+// Merchant Signup Route Aliases (Fixes 404 on frontend API calls)
+router.post('/merchant/signup', handleMerchantSignup);
+router.post('/merchant/auth/signup', handleMerchantSignup);
+router.post('/affiliate/signup', handleMerchantSignup);
 
 // ==========================================
 // 3. TOKEN VERIFICATION / SESSION CHECK
