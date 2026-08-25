@@ -11,7 +11,7 @@ async function syncDatabaseWithoutDropping() {
     // 1. Enable UUID Extension
     await db.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
 
-    // 2. Base Tables (without inline FK on card_scans to prevent type errors)
+    // 2. Base Tables
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -43,6 +43,13 @@ async function syncDatabaseWithoutDropping() {
         id SERIAL PRIMARY KEY,
         business_name VARCHAR(255) NOT NULL,
         category VARCHAR(100) DEFAULT 'General',
+        location VARCHAR(255),
+        website VARCHAR(255),
+        discount_type VARCHAR(50) DEFAULT 'discount',
+        offer_headline VARCHAR(255),
+        offer_terms TEXT,
+        contact_name VARCHAR(100),
+        contact_role VARCHAR(100),
         email VARCHAR(255) UNIQUE NOT NULL,
         phone VARCHAR(50),
         password_hash VARCHAR(255) NOT NULL,
@@ -117,13 +124,24 @@ async function syncDatabaseWithoutDropping() {
       END $$;
     `);
 
-    // 4. Clean up legacy columns
+    // 4. Safe Alterations for Existing Merchants Table
+    await db.query(`
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS website VARCHAR(255);
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS discount_type VARCHAR(50) DEFAULT 'discount';
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS offer_headline VARCHAR(255);
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS offer_terms TEXT;
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS contact_name VARCHAR(100);
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS contact_role VARCHAR(100);
+    `);
+
+    // 5. Clean up legacy columns
     await db.query(`
       ALTER TABLE users DROP COLUMN IF EXISTS business_name;
       ALTER TABLE users DROP COLUMN IF EXISTS business_category;
     `);
 
-    // 5. Ensure core user attributes exist
+    // 6. Ensure core user attributes exist
     await db.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'client';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR(50) DEFAULT 'standard';
@@ -131,7 +149,7 @@ async function syncDatabaseWithoutDropping() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `);
 
-    // 6. Performance Indexes
+    // 7. Performance Indexes
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);

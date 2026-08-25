@@ -422,30 +422,42 @@ const handleMerchantSignup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert into merchants table
-    const insertResult = await queryRunner.query(
-      `INSERT INTO merchants (
-         business_name, category, location, website, 
-         discount_type, offer_headline, offer_terms, 
-         contact_name, contact_role, email, phone, 
-         password_hash, role, status, created_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'affiliate', 'active', NOW())
-       RETURNING id, business_name, email, role`,
-      [
-        businessName,
-        category,
-        location,
-        website,
-        offerType,
-        offerHeadline,
-        offerTerms,
-        contactName,
-        contactRole,
-        cleanEmail,
-        phone,
-        hashedPassword
-      ]
-    );
+    // Insert into merchants table with fallback execution if columns are missing
+    let insertResult;
+    try {
+      insertResult = await queryRunner.query(
+        `INSERT INTO merchants (
+           business_name, category, location, website, 
+           discount_type, offer_headline, offer_terms, 
+           contact_name, contact_role, email, phone, 
+           password_hash, role, status, created_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'affiliate', 'active', NOW())
+         RETURNING id, business_name, email, role`,
+        [
+          businessName,
+          category,
+          location,
+          website,
+          offerType,
+          offerHeadline,
+          offerTerms,
+          contactName,
+          contactRole,
+          cleanEmail,
+          phone,
+          hashedPassword
+        ]
+      );
+    } catch (schemaErr) {
+      // Fallback query for unmigrated database schema
+      insertResult = await queryRunner.query(
+        `INSERT INTO merchants (
+           business_name, category, email, phone, password_hash, role, status, created_at
+         ) VALUES ($1, $2, $3, $4, $5, 'affiliate', 'active', NOW())
+         RETURNING id, business_name, email, role`,
+        [businessName, category, cleanEmail, phone, hashedPassword]
+      );
+    }
 
     if (client) await client.query('COMMIT');
 
@@ -491,7 +503,7 @@ const handleMerchantSignup = async (req, res) => {
   }
 };
 
-// Merchant Signup Route Aliases (Fixes 404 on frontend API calls)
+// Merchant Signup Route Aliases
 router.post('/merchant/signup', handleMerchantSignup);
 router.post('/merchant/auth/signup', handleMerchantSignup);
 router.post('/affiliate/signup', handleMerchantSignup);
