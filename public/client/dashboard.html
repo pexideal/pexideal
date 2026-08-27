@@ -73,28 +73,20 @@
 
     .progress-bar-glow {
       background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 100%);
+      transition: width 1s linear, background-color 0.3s ease;
     }
   </style>
 
   <script>
     (function() {
-    const keys = Object.keys(localStorage);
-    console.log('Available localStorage keys on load:', keys);
-    
-    const clientToken = localStorage.getItem('pexideal_client_token');
-    const token = localStorage.getItem('pexideal_token');
-    const affToken = localStorage.getItem('pexideal_affiliate_token');
-    
-    console.log({ pexideal_client_token: clientToken, pexideal_token: token, pexideal_affiliate_token: affToken });
+      const clientToken = localStorage.getItem('pexideal_client_token');
+      const token = localStorage.getItem('pexideal_token');
+      const affToken = localStorage.getItem('pexideal_affiliate_token');
 
-    if (!clientToken && !token && !affToken) {
-      console.warn('GUARD FAILED: No tokens found in localStorage!');
-      // Commented out temporarily for debugging:
-       window.location.href = 'login.html';
-    } else {
-      console.log('GUARD PASSED: Valid token found!');
-    }
-  })();
+      if (!clientToken && !token && !affToken) {
+        window.location.href = 'login.html';
+      }
+    })();
   </script>
 </head>
 <body>
@@ -177,7 +169,7 @@
             <div class="max-w-xs mx-auto px-4" style="max-width: 320px;">
               <div class="d-flex justify-content-between text-white-50 fs-7 mb-1">
                 <span>Rotating QR Security Token</span>
-                <span id="qrTimer">60s</span>
+                <span id="qrTimer">30s</span>
               </div>
               <div class="progress bg-dark" style="height: 4px;">
                 <div id="qrProgressBar" class="progress-bar progress-bar-glow" role="progressbar" style="width: 100%;"></div>

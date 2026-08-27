@@ -27,6 +27,8 @@ const authRoutes = require('./routes/auth');
 const cardRoutes = require('./routes/card');
 const redemptionRoutes = require('./routes/redemptions');
 const adminRoutes = require('./routes/admin');
+const scanRoutes = require('./routes/scan');
+const merchantRoutes = require('./routes/merchant'); // Added merchant route handler
 
 const app = express();
 
@@ -64,6 +66,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardRoutes);
+app.use('/api/scan', scanRoutes);
+app.use('/api/merchant', merchantRoutes); // Mounted /api/merchant endpoint for dashboard stats & logs
 app.use('/v1/discounts', redemptionRoutes); // Handles /verify and /sync-offline
 app.use('/api/admin', adminRoutes);
 

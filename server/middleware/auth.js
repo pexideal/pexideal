@@ -1,5 +1,5 @@
 /**
- * JWT Authentication Middleware
+ * JWT Authentication & Role-Based Authorization Middleware
  * File: server/middleware/auth.js
  */
 
@@ -30,12 +30,20 @@ function verifyToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, jwtSecret);
-    req.user = decoded; // Attach user payload ({ userId, email, role }) to request
+
+    // Normalize user payload structure for downstream compatibility
+    req.user = {
+      ...decoded,
+      id: decoded.id || decoded.userId,
+      userId: decoded.userId || decoded.id,
+      role: decoded.role || 'client'
+    };
+
     next();
   } catch (err) {
     console.warn(`JWT Verification Failed [${err.name}]: ${err.message}`);
-    
-    // Status 401 signals frontend (app.js) to clean expired storage keys & redirect cleanly
+
+    // Status 401 signals frontend (app.js) to clear expired storage keys & redirect cleanly
     return res.status(401).json({
       success: false,
       message: err.name === 'TokenExpiredError' 
@@ -46,8 +54,8 @@ function verifyToken(req, res, next) {
 }
 
 /**
- * Optional Role Authorization Middleware
- * Usage: router.get('/admin-data', verifyToken, requireRole('admin'), controller)
+ * Role-Based Access Control (RBAC) Middleware
+ * Usage: router.get('/admin-data', verifyToken, requireRole('admin', 'affiliate'), controller)
  */
 function requireRole(...allowedRoles) {
   return (req, res, next) => {
@@ -58,8 +66,8 @@ function requireRole(...allowedRoles) {
       });
     }
 
-    const userRole = req.user.role.toLowerCase();
-    const hasRole = allowedRoles.some((r) => r.toLowerCase() === userRole);
+    const userRole = String(req.user.role).toLowerCase();
+    const hasRole = allowedRoles.some((role) => String(role).toLowerCase() === userRole);
 
     if (!hasRole) {
       return res.status(403).json({
@@ -72,6 +80,9 @@ function requireRole(...allowedRoles) {
   };
 }
 
+// Export default and named exports for maximum compatibility across imports
 module.exports = verifyToken;
 module.exports.verifyToken = verifyToken;
 module.exports.requireRole = requireRole;
+module.exports.authenticateToken = verifyToken; // Alias for common naming convention
+module.exports.authorizeRoles = requireRole;   // Alias for common naming convention

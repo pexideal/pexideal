@@ -6,6 +6,9 @@
 const OFFLINE_QUEUE_KEY = 'pexideal_offline_redemptions';
 const STORE_ID = 'str_bistro_01';
 
+// Scanning guard / debounce flag
+let isProcessingScan = false;
+
 document.addEventListener('DOMContentLoaded', () => {
   const badge = document.getElementById('network-status-badge');
   const badgeText = document.getElementById('network-status-text');
@@ -55,14 +58,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('offline', updateNetworkUI);
   updateNetworkUI();
+  
+  // Auto-trigger sync on load if online and items pending
+  if (navigator.onLine) {
+    syncPendingRedemptions();
+  }
 });
 
 /**
  * Single Entry Point for Processing Scanned Tokens (Camera or Hardware Input)
  */
 async function handleScannedToken(qrToken) {
-  if (!qrToken) return;
-  await validateToken(qrToken);
+  if (!qrToken || isProcessingScan) return;
+  
+  isProcessingScan = true;
+  try {
+    await validateToken(qrToken);
+  } finally {
+    // 2-second cooldown debounce to prevent rapid duplicate scans
+    setTimeout(() => {
+      isProcessingScan = false;
+    }, 2000);
+  }
 }
 
 /**
@@ -73,7 +90,7 @@ function onCameraScanSuccess(decodedText) {
 }
 
 /**
- * Validate Token - Online API with Offline Fallback
+ * Validate Token - Online API via window.API.scan with Offline Fallback
  */
 async function validateToken(tokenString) {
   if (!navigator.onLine) {
@@ -82,19 +99,23 @@ async function validateToken(tokenString) {
   }
 
   try {
-    const response = await apiFetch('/api/merchant/scan-pass', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qrToken: tokenString, storeId: STORE_ID })
-    });
+    const discountInput = document.getElementById('discount-amount-input');
+    const discountAmount = parseFloat(discountInput?.value || 0);
 
-    if (response && response.success) {
-      showSuccessUI(response.member, false);
+    // Call app.js global API wrapper endpoint: POST /v1/discounts/verify
+    const response = await window.API.scan.validatePass(tokenString, STORE_ID, discountAmount);
+
+    if (response && (response.success || response.valid)) {
+      showSuccessUI({
+        fullName: response.customer?.name || 'Verified Cardholder',
+        cardNumber: response.customer?.cardNumber || response.customer?.cardId || 'Active Pass',
+        tier: response.discount?.title || 'Standard Pass'
+      }, false);
     } else {
       showInvalidUI((response && response.message) || 'Pass invalid or expired.');
     }
   } catch (err) {
-    console.warn('Network timeout or endpoint error. Switching to local offline check...', err);
+    console.warn('Network error or server timeout. Switching to local offline validation...', err.message);
     handleOfflineValidation(tokenString);
   }
 }
@@ -103,7 +124,7 @@ async function validateToken(tokenString) {
  * Local Cryptographic & Offline Check (Offline Mode)
  */
 function handleOfflineValidation(tokenString) {
-  let userId = 'Offline User';
+  let userId = 'Offline Member';
   let cardId = tokenString;
 
   // Handle JWT / Structured PEXI Tokens (Format: PEXI:<jwt> or <header>.<payload>.<sig>)
@@ -113,8 +134,11 @@ function handleOfflineValidation(tokenString) {
 
     if (parts.length === 3) {
       try {
-        const payload = JSON.parse(atob(parts[1]));
-        cardId = payload.cardNumber || cardId;
+        // Base64URL safe decoding helper
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+        
+        cardId = payload.cardNumber || payload.cardId || cardId;
         userId = payload.userId ? `User #${payload.userId}` : userId;
 
         // Verify Expiration if present inside JWT payload
@@ -147,42 +171,54 @@ function handleOfflineValidation(tokenString) {
 
   // Double-scan protection for offline queue
   const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
-  if (queue.some(item => item.token === tokenString)) {
+  if (queue.some(item => item.token === tokenString || item.qrData === tokenString)) {
     showInvalidUI('This pass was already scanned offline!');
     return;
   }
 
   // Queue transaction for background sync when connection recovers
-  queue.push({ token: tokenString, storeId: STORE_ID, scannedAt: new Date().toISOString() });
+  const discountInput = document.getElementById('discount-amount-input');
+  queue.push({
+    token: tokenString,
+    qrData: tokenString,
+    storeId: STORE_ID,
+    discountAmount: parseFloat(discountInput?.value || 0),
+    scannedAt: new Date().toISOString()
+  });
+  
   localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+
+  // Trigger UI network bar update to reflect new queue count
+  window.dispatchEvent(new Event('offline'));
 
   showSuccessUI({
     fullName: userId,
     cardNumber: cardId,
-    tier: 'Offline Check'
+    tier: 'Offline Verified'
   }, true);
 }
 
 /**
- * Background Sync Queue
+ * Background Sync Queue via window.API.scan.syncOfflineBatch
  */
 async function syncPendingRedemptions() {
   const queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
   if (queue.length === 0) return;
 
   try {
-    const response = await apiFetch('/api/merchant/scan-pass', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ batch: queue })
-    });
+    // Call app.js global API wrapper endpoint: POST /v1/discounts/sync-offline
+    const response = await window.API.scan.syncOfflineBatch(queue);
 
     if (response && response.success) {
+      console.log(`Synced ${response.syncedCount || queue.length} offline redemptions successfully.`);
       localStorage.removeItem(OFFLINE_QUEUE_KEY);
-      window.dispatchEvent(new Event('online'));
+      
+      // Update Network UI Badge & Queue Bar
+      const queueBar = document.getElementById('offline-queue-bar');
+      if (queueBar) queueBar.classList.add('d-none');
     }
   } catch (err) {
-    console.error('Failed to sync offline queue:', err);
+    console.error('Failed to sync offline queue:', err.message);
   }
 }
 
@@ -203,7 +239,7 @@ function showSuccessUI(member, isOffline = false) {
 
   if (nameElem) nameElem.textContent = member.fullName || member.name || 'Member';
   if (idElem) idElem.textContent = member.cardNumber || member.cardId || 'N/A';
-  if (tierElem) tierElem.textContent = member.tier ? `${member.tier.toUpperCase()} Member` : 'Standard Pass';
+  if (tierElem) tierElem.textContent = member.tier ? `${member.tier.toUpperCase()}` : 'Standard Pass';
 
   if (invalidBox) invalidBox.style.display = 'none';
   if (successBox) successBox.style.display = 'block';
